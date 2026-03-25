@@ -66,8 +66,8 @@ add_action('template_redirect', function (): void {
         return;
     }
 
-    $sessionId = filter_input(INPUT_GET, 'session_id', FILTER_SANITIZE_SPECIAL_CHARS);
-    if (!$sessionId) {
+    $token = filter_input(INPUT_GET, 'token', FILTER_SANITIZE_SPECIAL_CHARS);
+    if (!$token) {
         wp_redirect(home_url('/verification-failed/'));
         exit;
     }
@@ -76,7 +76,7 @@ add_action('template_redirect', function (): void {
     $xident = new Client(apiKey: $apiKey);
 
     try {
-        $result = $xident->verification()->getResult($sessionId);
+        $result = $xident->verification()->getResult($token);
 
         if ($result->isVerified()) {
             update_user_meta(get_current_user_id(), 'age_verified', true);

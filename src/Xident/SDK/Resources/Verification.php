@@ -46,21 +46,21 @@ final class Verification
     }
 
     /**
-     * Get the verification result for a session.
+     * Get the verification result for a token.
      *
      * Call this after the user returns from the verification widget.
      * NEVER trust URL parameters alone — always re-verify server-side.
      *
-     * @throws \Xident\SDK\Exceptions\NotFoundException If session ID does not exist
+     * @throws \Xident\SDK\Exceptions\NotFoundException If token does not exist
      * @throws \Xident\SDK\Exceptions\AuthenticationException If API key is invalid
      */
-    public function getResult(string $sessionId): SessionResult
+    public function getResult(string $token): SessionResult
     {
-        if ($sessionId === '') {
-            throw new \InvalidArgumentException('Session ID cannot be empty');
+        if ($token === '') {
+            throw new \InvalidArgumentException('Token cannot be empty');
         }
 
-        $response = $this->http->get('/status/' . urlencode($sessionId));
+        $response = $this->http->get('/status/' . urlencode($token));
         return SessionResult::fromArray($response->data ?? []);
     }
 }

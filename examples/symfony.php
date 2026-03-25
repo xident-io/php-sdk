@@ -44,13 +44,13 @@ class VerificationController extends AbstractController
     #[Route('/verify/callback', name: 'verify_callback')]
     public function callback(Request $request): Response
     {
-        $sessionId = $request->query->get('session_id', '');
-        if ($sessionId === '') {
+        $token = $request->query->get('token', '');
+        if ($token === '') {
             return $this->redirectToRoute('verify_failed');
         }
 
         try {
-            $result = $this->xident->verification()->getResult($sessionId);
+            $result = $this->xident->verification()->getResult($token);
 
             if ($result->isVerified()) {
                 $request->getSession()->set('age_verified', true);

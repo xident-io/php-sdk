@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Xident\SDK;
 
-use Xident\SDK\Resources\Tokens;
 use Xident\SDK\Resources\Verification;
 use Xident\SDK\Resources\Webhooks;
 
@@ -14,14 +13,13 @@ use Xident\SDK\Resources\Webhooks;
  * Usage:
  *   $xident = new \Xident\SDK\Client('sk_live_xxx');
  *   $session = $xident->verification()->init([...]);
- *   $result = $xident->verification()->getResult($sessionId);
+ *   $result = $xident->verification()->getResult($token);
  */
 final class Client
 {
     private Config $config;
     private HttpClient $http;
     private ?Verification $verification = null;
-    private ?Tokens $tokens = null;
     private ?Webhooks $webhooks = null;
 
     /**
@@ -55,12 +53,6 @@ final class Client
     public function verification(): Verification
     {
         return $this->verification ??= new Verification($this->http);
-    }
-
-    /** Tokens resource — verify Xident verification tokens. */
-    public function tokens(): Tokens
-    {
-        return $this->tokens ??= new Tokens($this->http);
     }
 
     /** Webhooks resource — verify signatures and parse events. */

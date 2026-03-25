@@ -63,13 +63,13 @@ try {
 // Step 3: Verify Result (handle the callback)
 // ─────────────────────────────────────────────────
 
-// User returns to: https://yoursite.com/verify-callback?session_id=xxx
+// User returns to: https://yoursite.com/verify-callback?token=xxx
 // NEVER trust the URL alone — always verify server-side:
 
-$sessionId = safeParam('session_id', 'demo_session_id');
+$token = safeParam('token', 'demo_token');
 
 try {
-    $result = $xident->verification()->getResult($sessionId);
+    $result = $xident->verification()->getResult($token);
 
     if ($result->isVerified()) {
         $bracket = $result->ageBracket();
@@ -85,18 +85,3 @@ try {
     echo "Error checking result: " . $e->getMessage() . "\n";
 }
 
-// ─────────────────────────────────────────────────
-// Token verification (for returning Xident users — cheap path)
-// ─────────────────────────────────────────────────
-
-$token = safeParam('xident_token');
-if ($token !== null) {
-    try {
-        $tokenResult = $xident->tokens()->verify($token);
-        if ($tokenResult->isValid() && $tokenResult->meetsMinAge(18)) {
-            echo "Returning user verified (cheap path)\n";
-        }
-    } catch (XidentException $e) {
-        echo "Token verification error: " . $e->getMessage() . "\n";
-    }
-}

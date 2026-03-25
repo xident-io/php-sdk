@@ -31,15 +31,15 @@ try {
     // Handle the event
     switch ($event['type']) {
         case 'session.completed':
-            $sessionId = $event['data']['session_id'] ?? '';
-            $status    = $event['data']['status'] ?? '';
+            $token  = $event['data']['token'] ?? '';
+            $status = $event['data']['status'] ?? '';
             // Update your database, grant access, etc.
-            error_log("Session {$sessionId} completed with status: {$status}");
+            error_log("Verification {$token} completed with status: {$status}");
             break;
 
         case 'session.failed':
-            $sessionId = $event['data']['session_id'] ?? '';
-            error_log("Session {$sessionId} failed");
+            $token = $event['data']['token'] ?? '';
+            error_log("Verification {$token} failed");
             break;
 
         case 'session.expired':

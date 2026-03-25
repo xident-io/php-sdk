@@ -156,7 +156,7 @@ final class VerificationTest extends TestCase
         $this->client($transport)->verification()->getResult('nonexistent');
     }
 
-    public function testGetResultEmptySessionIdThrows(): void
+    public function testGetResultEmptyTokenThrows(): void
     {
         $transport = new MockTransport();
         $client = $this->client($transport);

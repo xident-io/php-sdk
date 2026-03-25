@@ -31,7 +31,7 @@ $session = $xident->verification()->init([
 // Redirect user to $session->verifyUrl
 
 // 2. After user returns, verify server-side (NEVER trust URL params)
-$result = $xident->verification()->getResult($sessionId);
+$result = $xident->verification()->getResult($token);
 
 if ($result->isVerified()) {
     echo $result->ageBracket(); // 18
@@ -43,8 +43,8 @@ if ($result->isVerified()) {
 1. Your backend calls `POST /verify/v1/init` with your secret key
 2. SDK returns a token + verify URL. You redirect the user there.
 3. User completes verification on `verify.xident.io` (liveness + age check)
-4. User redirected back to your `success_url` with `?session_id=xxx`
-5. Your backend calls `GET /verify/v1/status/{session_id}` to get the result
+4. User redirected back to your `success_url` with `?token=xxx`
+5. Your backend calls `GET /verify/v1/status/{token}` to get the result
 6. You make the authorization decision based on the verified result
 
 ## API Reference
@@ -75,15 +75,9 @@ $xident = new \Xident\SDK\Client(
 
 Returns: `$result->token`, `$result->verifyUrl`
 
-### verification()->getResult(sessionId): SessionResult
+### verification()->getResult(token): SessionResult
 
 Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `ageBracket()`, `method()`
-
-### tokens()->verify(token): TokenResult
-
-Cheap path for returning Xident users (80% less cost).
-
-Helpers: `isValid()`, `meetsMinAge(int)`
 
 ### webhooks()->constructEvent(payload, signature, secret): array
 
@@ -106,7 +100,7 @@ use Xident\SDK\Exceptions\AuthenticationException;
 use Xident\SDK\Exceptions\NotFoundException;
 
 try {
-    $result = $xident->verification()->getResult($sessionId);
+    $result = $xident->verification()->getResult($token);
 } catch (AuthenticationException $e) {
     // 401 - Invalid API key
 } catch (NotFoundException $e) {
@@ -143,7 +137,7 @@ class VerificationController extends Controller
     public function callback(Request $request)
     {
         $xident = new \Xident\SDK\Client(apiKey: config('services.xident.secret_key'));
-        $result = $xident->verification()->getResult($request->input('session_id'));
+        $result = $xident->verification()->getResult($request->input('token'));
         if ($result->isVerified()) {
             $request->user()->update(['age_verified' => true]);
             return redirect()->route('dashboard');
@@ -160,7 +154,7 @@ See `examples/` for Symfony, WordPress, and webhook examples.
 - **Secret key**: Never expose `sk_*` in frontend code
 - **TLS 1.2+**: Enforced on all API calls
 - **Webhooks**: Always verify signatures (`hash_equals` for timing-attack resistance)
-- **Sessions**: Always re-verify server-side. Never trust URL params alone.
+- **Verification tokens**: Always re-verify server-side. Never trust URL params alone.
 - **SSRF**: HTTP client does not follow redirects
 
 ## Testing

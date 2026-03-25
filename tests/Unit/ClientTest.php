@@ -7,7 +7,6 @@ namespace Xident\SDK\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Xident\SDK\Client;
 use Xident\SDK\Config;
-use Xident\SDK\Resources\Tokens;
 use Xident\SDK\Resources\Verification;
 use Xident\SDK\Resources\Webhooks;
 use Xident\SDK\Tests\Helpers\MockTransport;
@@ -42,12 +41,6 @@ final class ClientTest extends TestCase
     {
         $client = new Client('sk_test_123');
         $this->assertInstanceOf(Verification::class, $client->verification());
-    }
-
-    public function testTokensReturnsResource(): void
-    {
-        $client = new Client('sk_test_123');
-        $this->assertInstanceOf(Tokens::class, $client->tokens());
     }
 
     public function testWebhooksReturnsResource(): void

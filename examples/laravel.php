@@ -49,10 +49,10 @@ class VerificationController extends Controller
     /** Handle callback — verify result server-side. */
     public function callback(Request $request): RedirectResponse
     {
-        $sessionId = $request->validate(['session_id' => 'required|string'])['session_id'];
+        $token = $request->validate(['token' => 'required|string'])['token'];
 
         try {
-            $result = $this->xident->verification()->getResult($sessionId);
+            $result = $this->xident->verification()->getResult($token);
 
             if ($result->isVerified()) {
                 // Store verification in your database
