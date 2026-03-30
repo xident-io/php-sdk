@@ -200,7 +200,7 @@ final class HttpClient
         if ($rawResponse === false) {
             $error = curl_error($ch);
             $errno = curl_errno($ch);
-            curl_close($ch);
+            unset($ch);
             throw new NetworkException(
                 "cURL error ({$errno}): {$error}",
                 'NETWORK_ERROR',
@@ -211,7 +211,7 @@ final class HttpClient
 
         $httpStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $headerSize = (int)curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-        curl_close($ch);
+        unset($ch);
 
         $responseHeaders = $this->parseResponseHeaders(substr((string)$rawResponse, 0, $headerSize));
         $responseBody = substr((string)$rawResponse, $headerSize);

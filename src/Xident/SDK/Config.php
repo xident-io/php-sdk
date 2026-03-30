@@ -9,7 +9,7 @@ namespace Xident\SDK;
  */
 final readonly class Config
 {
-    public const DEFAULT_BASE_URL = 'https://api.xident.io';
+    public const DEFAULT_BASE_URL = 'http://localhost:9000';
     public const DEFAULT_TIMEOUT = 30;
     public const DEFAULT_MAX_RETRIES = 3;
     public const API_VERSION = 'verify/v1';

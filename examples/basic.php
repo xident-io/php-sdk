@@ -3,11 +3,16 @@
  * Xident PHP SDK — Basic Integration Example
  *
  * This shows the full verification flow:
- * 1. Create init token (backend)
+ * 1. Create init token using your SECRET key (server-side only)
  * 2. Redirect user to verification widget
- * 3. Handle callback and verify result (backend)
+ * 3. Handle callback and verify result using your SECRET key
  *
- * Run: php examples/basic.php
+ * IMPORTANT: Use your SECRET key (sk_live_... or sk_test_...) for server-side SDK calls.
+ * The public key (pk_live_...) is for the JS SDK embedded in your frontend only.
+ *
+ * Run with PHP built-in server:
+ *   XIDENT_SECRET_KEY=sk_test_adult_secret_key_1234567890 php -S localhost:8888 -t examples
+ *   Then open: http://localhost:8888/basic.php
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -17,7 +22,7 @@ use Xident\SDK\Client;
 use Xident\SDK\Exceptions\XidentException;
 
 /**
- * Helper: safely read a query parameter (sanitize for CLI demo).
+ * Helper: safely read a query parameter.
  * In production, use your framework's request object instead.
  */
 function safeParam(string $key, ?string $default = null): ?string
@@ -26,62 +31,79 @@ function safeParam(string $key, ?string $default = null): ?string
     return is_string($raw) && $raw !== '' ? $raw : $default;
 }
 
-// Initialize the client with your secret API key
-$xident = new Client(
-    apiKey: getenv('XIDENT_SECRET_KEY') ?: 'sk_test_xxx',
-);
+// ─────────────────────────────────────────────────
+// Initialize the client with your SECRET API key
+// ─────────────────────────────────────────────────
+// The secret key (sk_live_... or sk_test_...) is required for:
+//   - Creating init tokens (POST /verify/v1/init)
+//   - Reading verification results (GET /verify/v1/status/{token})
+// The public key (pk_live_... or pk_test_...) is for the JS SDK only.
+
+$secretKey = getenv('XIDENT_SECRET_KEY');
+if (!$secretKey) {
+    echo "ERROR: Set XIDENT_SECRET_KEY environment variable\n";
+    echo "Example: XIDENT_SECRET_KEY=sk_test_adult_secret_key_1234567890 php -S localhost:8888 -t examples\n";
+    exit(1);
+}
+
+$xident = new Client(apiKey: $secretKey);
 
 // ─────────────────────────────────────────────────
-// Step 1: Create Init Token (call this from your "verify age" endpoint)
+// Handle callback — check if user returned from verification
 // ─────────────────────────────────────────────────
+
+$callbackToken = safeParam('token');
+if ($callbackToken) {
+    // User returned from verification widget with ?token=xtk_xxx
+    // ALWAYS verify server-side — never trust URL params alone
+    try {
+        $result = $xident->verification()->getResult($callbackToken);
+
+        if ($result->isVerified()) {
+            $bracket = $result->ageBracket();
+            $method  = $result->method();
+            $country = $result->countryCode;
+            echo "<h2 style='color:green'>Verified!</h2>";
+            echo "<p>Age bracket: {$bracket}+, Method: {$method}, Country: {$country}</p>";
+        } elseif ($result->isFailed()) {
+            echo "<h2 style='color:red'>Verification failed</h2>";
+        } elseif ($result->isPending()) {
+            echo "<h2 style='color:orange'>Still in progress...</h2>";
+        }
+    } catch (XidentException $e) {
+        echo "<p style='color:red'>Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+    }
+    exit;
+}
+
+// ─────────────────────────────────────────────────
+// Step 1: Create Init Token and redirect user
+// ─────────────────────────────────────────────────
+
+$callbackUrl = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost:8888') . '/basic.php';
 
 try {
     $session = $xident->verification()->init([
-        'callback_url' => 'https://yoursite.com/verify-callback',
+        'callback_url' => $callbackUrl,
         'min_age'      => 18,
-        'success_url'  => 'https://yoursite.com/welcome',
-        'failed_url'   => 'https://yoursite.com/sorry',
-        'user_id'      => 'user_123',          // Your internal user ID (optional)
-        'theme'        => 'auto',              // light, dark, auto
-        'locale'       => 'en',               // Language
+        'user_id'      => 'php_demo_user',
     ]);
 
-    echo "Token: " . $session->token . "\n";
-    echo "Redirect user to: " . $session->verifyUrl . "\n";
-
-    // In a real app:
-    // header('Location: ' . $session->verifyUrl);
-    // exit;
+    // Show link to verification widget
+    $verifyUrl = htmlspecialchars($session->verifyUrl);
+    echo "<h1>Xident PHP SDK Demo</h1>";
+    echo "<p>Init token created: <code>{$session->token}</code></p>";
+    echo "<p><a href='{$verifyUrl}' style='display:inline-block;padding:12px 24px;background:#4f46e5;color:white;border-radius:8px;text-decoration:none;font-weight:bold'>Start Age Verification</a></p>";
+    echo "<p style='color:#666;font-size:13px'>After verification, you'll be redirected back here with the result.</p>";
 
 } catch (XidentException $e) {
-    echo "Error: " . $e->getMessage() . "\n";
-    echo "Code: " . $e->getErrorCode() . "\n";
-    echo "Request ID: " . ($e->getRequestId() ?? 'n/a') . "\n";
-}
+    echo "<h2 style='color:red'>Error creating init token</h2>";
+    echo "<p>" . htmlspecialchars($e->getMessage()) . "</p>";
+    echo "<p>Code: " . htmlspecialchars($e->getErrorCode() ?? 'unknown') . "</p>";
+    echo "<p>Request ID: " . htmlspecialchars($e->getRequestId() ?? 'n/a') . "</p>";
 
-// ─────────────────────────────────────────────────
-// Step 3: Verify Result (handle the callback)
-// ─────────────────────────────────────────────────
-
-// User returns to: https://yoursite.com/verify-callback?token=xxx
-// NEVER trust the URL alone — always verify server-side:
-
-$token = safeParam('token', 'demo_token');
-
-try {
-    $result = $xident->verification()->getResult($token);
-
-    if ($result->isVerified()) {
-        $bracket = $result->ageBracket();
-        $method  = $result->method();
-        $country = $result->countryCode;
-        echo "Verified! Age bracket: {$bracket}, Method: {$method}, Country: {$country}\n";
-    } elseif ($result->isFailed()) {
-        echo "Verification failed\n";
-    } elseif ($result->isPending()) {
-        echo "Still in progress\n";
+    if (str_contains($e->getMessage(), 'SECRET_KEY_REQUIRED')) {
+        echo "<p style='color:#b91c1c'><strong>Hint:</strong> You're using a public key (pk_...). ";
+        echo "The init endpoint requires a secret key (sk_...). Check your dashboard for the secret key.</p>";
     }
-} catch (XidentException $e) {
-    echo "Error checking result: " . $e->getMessage() . "\n";
 }
-
