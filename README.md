@@ -11,7 +11,7 @@ Server-side PHP SDK for [Xident](https://xident.io) age and identity verificatio
 ## Installation
 
 ```bash
-composer require xident/xident-php
+composer require xident-io/php-sdk
 ```
 
 Without Composer: `require_once '/path/to/xident-php/autoload.php';`
