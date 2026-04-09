@@ -1,5 +1,5 @@
 {
-    "name": "xident-io/xident-php",
+    "name": "xident-io/php-sdk",
     "description": "PHP SDK for Xident age and identity verification",
     "type": "library",
     "license": "MIT",
