@@ -46,19 +46,19 @@ final class ConfigTest extends TestCase
 
     public function testBaseUrlTrailingSlashTrimmed(): void
     {
-        $config = new Config(apiKey: 'sk_test', baseUrl: 'https://api.example.com/');
+        $config = new Config(apiKey: 'sk_test_x', baseUrl: 'https://api.example.com/');
         $this->assertSame('https://api.example.com', $config->baseUrl);
     }
 
     public function testApiUrl(): void
     {
-        $config = new Config(apiKey: 'sk_test', baseUrl: 'https://api.xident.io');
+        $config = new Config(apiKey: 'sk_test_x', baseUrl: 'https://api.xident.io');
         $this->assertSame('https://api.xident.io/verify/v1', $config->apiUrl());
     }
 
     public function testUserAgent(): void
     {
-        $config = new Config(apiKey: 'sk_test');
+        $config = new Config(apiKey: 'sk_test_x');
         $ua = $config->userAgent();
 
         $this->assertStringContainsString('Xident-PHP/', $ua);
@@ -68,13 +68,39 @@ final class ConfigTest extends TestCase
 
     public function testTimeoutMinimumClamped(): void
     {
-        $config = new Config(apiKey: 'sk_test', timeout: -5);
+        $config = new Config(apiKey: 'sk_test_x', timeout: -5);
         $this->assertSame(1, $config->timeout);
     }
 
     public function testMaxRetriesMinimumClamped(): void
     {
-        $config = new Config(apiKey: 'sk_test', maxRetries: -1);
+        $config = new Config(apiKey: 'sk_test_x', maxRetries: -1);
         $this->assertSame(0, $config->maxRetries);
+    }
+
+    public function testRejectsPublicKey(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Public keys (pk_*)');
+        new Config(apiKey: 'pk_live_abc123');
+    }
+
+    public function testRejectsInvalidFormat(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid API key format');
+        new Config(apiKey: 'some_random_key');
+    }
+
+    public function testAcceptsSkLiveKey(): void
+    {
+        $config = new Config(apiKey: 'sk_live_abc123');
+        $this->assertSame('sk_live_abc123', $config->apiKey);
+    }
+
+    public function testAcceptsSkTestKey(): void
+    {
+        $config = new Config(apiKey: 'sk_test_abc123');
+        $this->assertSame('sk_test_abc123', $config->apiKey);
     }
 }

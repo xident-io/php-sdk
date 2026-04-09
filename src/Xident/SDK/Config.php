@@ -36,6 +36,17 @@ final readonly class Config
             throw new \InvalidArgumentException('API key cannot be empty');
         }
 
+        if (str_starts_with($apiKey, 'pk_')) {
+            throw new \InvalidArgumentException(
+                'Public keys (pk_*) cannot be used with the server SDK. Use your secret key (sk_live_* or sk_test_*).'
+            );
+        }
+        if (!str_starts_with($apiKey, 'sk_live_') && !str_starts_with($apiKey, 'sk_test_')) {
+            throw new \InvalidArgumentException(
+                'Invalid API key format. Must start with "sk_live_" or "sk_test_".'
+            );
+        }
+
         $this->apiKey = $apiKey;
         $this->baseUrl = rtrim($baseUrl, '/');
         $this->timeout = max(1, $timeout);

@@ -138,7 +138,7 @@ final class HttpClientTest extends TestCase
 
     public function testCustomHeadersIncluded(): void
     {
-        $config = new Config(apiKey: 'sk_test', headers: ['X-Custom' => 'hello']);
+        $config = new Config(apiKey: 'sk_test_x', headers: ['X-Custom' => 'hello']);
         $transport = new MockTransport();
         $transport->queueSuccess([]);
         $client = $this->makeClient($transport, $config);
@@ -205,7 +205,7 @@ final class HttpClientTest extends TestCase
         $transport = new MockTransport();
         $transport->queueError(500, 'INTERNAL_ERROR', 'Server error');
         // No retries to test immediate exception
-        $config = new Config(apiKey: 'sk_test', maxRetries: 0);
+        $config = new Config(apiKey: 'sk_test_x', maxRetries: 0);
         $client = $this->makeClient($transport, $config);
 
         $this->expectException(ServerException::class);
@@ -217,7 +217,7 @@ final class HttpClientTest extends TestCase
         $transport = function () {
             throw new NetworkException('cURL error (28): Connection timed out', 'NETWORK_ERROR');
         };
-        $config = new Config(apiKey: 'sk_test', maxRetries: 0);
+        $config = new Config(apiKey: 'sk_test_x', maxRetries: 0);
         $client = new HttpClient($config, $transport);
 
         $this->expectException(NetworkException::class);
@@ -232,7 +232,7 @@ final class HttpClientTest extends TestCase
         $transport->queueError(500, 'INTERNAL_ERROR', 'Error 1');
         $transport->queueSuccess(['ok' => true]);
 
-        $config = new Config(apiKey: 'sk_test', maxRetries: 1);
+        $config = new Config(apiKey: 'sk_test_x', maxRetries: 1);
         $client = $this->makeClient($transport, $config);
 
         $response = $client->get('/test');
@@ -246,7 +246,7 @@ final class HttpClientTest extends TestCase
         $transport = new MockTransport();
         $transport->queueError(400, 'BAD_REQUEST', 'Invalid');
 
-        $config = new Config(apiKey: 'sk_test', maxRetries: 3);
+        $config = new Config(apiKey: 'sk_test_x', maxRetries: 3);
         $client = $this->makeClient($transport, $config);
 
         try {
@@ -264,7 +264,7 @@ final class HttpClientTest extends TestCase
         $transport->queueError(500, 'ERROR', 'Fail 1');
         $transport->queueError(500, 'ERROR', 'Fail 2');
 
-        $config = new Config(apiKey: 'sk_test', maxRetries: 1);
+        $config = new Config(apiKey: 'sk_test_x', maxRetries: 1);
         $client = $this->makeClient($transport, $config);
 
         $this->expectException(ServerException::class);
@@ -306,7 +306,7 @@ final class HttpClientTest extends TestCase
         $transport = function () {
             return ['status' => 200, 'body' => 'not json', 'headers' => []];
         };
-        $client = new HttpClient(new Config(apiKey: 'sk_test'), $transport);
+        $client = new HttpClient(new Config(apiKey: 'sk_test_x'), $transport);
 
         // Non-JSON 200 response should be treated as error
         $this->expectException(ValidationException::class);
