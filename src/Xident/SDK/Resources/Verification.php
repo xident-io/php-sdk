@@ -32,8 +32,6 @@ final class Verification
      *   theme?: string,
      *   locale?: string,
      *   metadata?: string,
-     *   liveness_difficulty?: string,
-     *   purpose?: string,
      * } $params
      *
      * @throws \Xident\SDK\Exceptions\ValidationException If required params are missing
@@ -60,7 +58,7 @@ final class Verification
             throw new \InvalidArgumentException('Token cannot be empty');
         }
 
-        $response = $this->http->get('/status/' . urlencode($token));
+        $response = $this->http->get('/result/' . urlencode($token));
         return SessionResult::fromArray($response->data ?? []);
     }
 }

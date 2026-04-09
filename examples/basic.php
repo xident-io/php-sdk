@@ -36,7 +36,7 @@ function safeParam(string $key, ?string $default = null): ?string
 // ─────────────────────────────────────────────────
 // The secret key (sk_live_... or sk_test_...) is required for:
 //   - Creating init tokens (POST /verify/v1/init)
-//   - Reading verification results (GET /verify/v1/status/{token})
+//   - Reading verification results (GET /verify/v1/result/{token})
 // The public key (pk_live_... or pk_test_...) is for the JS SDK only.
 
 $secretKey = getenv('XIDENT_SECRET_KEY');

@@ -98,13 +98,11 @@ final class VerificationTest extends TestCase
             'theme' => 'light',
             'locale' => 'en',
             'metadata' => '{"plan":"pro"}',
-            'liveness_difficulty' => 'hard',
         ]);
 
         $body = json_decode($transport->getLastRequest()['body'], true);
         $this->assertSame('https://example.com/success', $body['success_url']);
         $this->assertSame('https://example.com/failed', $body['failed_url']);
-        $this->assertSame('hard', $body['liveness_difficulty']);
     }
 
     // --- getResult() ---
@@ -144,7 +142,7 @@ final class VerificationTest extends TestCase
 
         $req = $transport->getLastRequest();
         $this->assertSame('GET', $req['method']);
-        $this->assertStringContainsString('/status/sess_x', $req['url']);
+        $this->assertStringContainsString('/result/sess_x', $req['url']);
     }
 
     public function testGetResultNotFound(): void

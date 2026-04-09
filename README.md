@@ -44,7 +44,7 @@ if ($result->isVerified()) {
 2. SDK returns a token + verify URL. You redirect the user there.
 3. User completes verification on `verify.xident.io` (liveness + age check)
 4. User redirected back to your `success_url` with `?token=xxx`
-5. Your backend calls `GET /verify/v1/status/{token}` to get the result
+5. Your backend calls `GET /verify/v1/result/{token}` to get the result
 6. You make the authorization decision based on the verified result
 
 ## API Reference
@@ -174,6 +174,7 @@ $client = new \Xident\SDK\Client('sk_test_xxx', transport: $transport);
 
 ## Links
 
+- [Try it live](https://demo.xident.io)
 - [Documentation](https://docs.xident.io/sdks/php)
 - [API Reference](https://docs.xident.io/api-reference)
 - [JavaScript SDK](https://docs.xident.io/sdks/javascript) (client-side counterpart)

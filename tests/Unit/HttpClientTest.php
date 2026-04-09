@@ -33,11 +33,11 @@ final class HttpClientTest extends TestCase
         $transport->queueSuccess(['ok' => true]);
         $client = $this->makeClient($transport);
 
-        $client->get('/status/abc');
+        $client->get('/result/abc');
 
         $req = $transport->getLastRequest();
         $this->assertSame('GET', $req['method']);
-        $this->assertStringContainsString('/verify/v1/status/abc', $req['url']);
+        $this->assertStringContainsString('/verify/v1/result/abc', $req['url']);
     }
 
     public function testPostRequestSendsCorrectMethodAndBody(): void

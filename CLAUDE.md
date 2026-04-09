@@ -28,7 +28,7 @@ Client → Resources (Verification, Webhooks)
 | Endpoint | SDK Method | Auth |
 |----------|-----------|------|
 | `POST /verify/v1/init` | `verification()->init()` | X-API-Key |
-| `GET /verify/v1/status/{token}` | `verification()->getResult()` | X-API-Key |
+| `GET /verify/v1/result/{token}` | `verification()->getResult()` | X-API-Key |
 
 ## Commands
 ```bash
