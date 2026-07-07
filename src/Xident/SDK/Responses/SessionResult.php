@@ -20,9 +20,13 @@ final readonly class SessionResult
      * @param array<string, mixed>|null $ocrResult
      * @param array<string, mixed>|null $faceMatchResult
      * @param list<string>|null $requiredMethods
+     *
+     * Fields mirror the `GET /verify/v1/result/{token}` response DTO. The
+     * `$token` here is the RESULT token (`xtk_` prefixed) — the same one the
+     * widget appends to your callback URL, NOT the short-lived `xit_` init token.
      */
     public function __construct(
-        public string $id,
+        public string $token,
         public SessionStatus $status,
         public ?array $livenessResult = null,
         public ?array $ageResult = null,
@@ -31,13 +35,9 @@ final readonly class SessionResult
         public ?string $ocrTaskId = null,
         public ?string $countryCode = null,
         public ?string $regime = null,
-        public ?int $minAge = null,
-        public ?string $externalUserId = null,
         public ?array $requiredMethods = null,
         public ?int $remainingAttempts = null,
         public string $createdAt = '',
-        public ?string $startedAt = null,
-        public ?string $completedAt = null,
         public ?string $expiresAt = null,
     ) {}
 
@@ -92,7 +92,7 @@ final readonly class SessionResult
     public static function fromArray(array $data): self
     {
         return new self(
-            id: (string)($data['id'] ?? ''),
+            token: (string)($data['token'] ?? ''),
             status: SessionStatus::tryFrom((string)($data['status'] ?? 'pending')) ?? SessionStatus::Pending,
             livenessResult: $data['liveness_result'] ?? null,
             ageResult: $data['age_result'] ?? null,
@@ -101,13 +101,9 @@ final readonly class SessionResult
             ocrTaskId: $data['ocr_task_id'] ?? null,
             countryCode: $data['country_code'] ?? null,
             regime: $data['regime'] ?? null,
-            minAge: isset($data['min_age']) ? (int)$data['min_age'] : null,
-            externalUserId: $data['external_user_id'] ?? null,
             requiredMethods: $data['required_methods'] ?? null,
             remainingAttempts: isset($data['remaining_attempts']) ? (int)$data['remaining_attempts'] : null,
             createdAt: (string)($data['created_at'] ?? ''),
-            startedAt: $data['started_at'] ?? null,
-            completedAt: $data['completed_at'] ?? null,
             expiresAt: $data['expires_at'] ?? null,
         );
     }

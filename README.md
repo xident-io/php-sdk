@@ -41,10 +41,14 @@ if ($result->isVerified()) {
 ## How It Works
 
 1. Your backend calls `POST /verify/v1/init` with your secret key
-2. SDK returns a token + verify URL. You redirect the user there.
+2. SDK returns an init token (`xit_`) + verify URL. You redirect the user there.
 3. User completes verification on `verify.xident.io` (liveness + age check)
-4. User redirected back to your `success_url` with `?token=xxx`
-5. Your backend calls `GET /verify/v1/result/{token}` to get the result
+4. Widget redirects the browser back to your `callback_url` with query params:
+   `status` (`success`, `failed`, or `cancelled` — British spelling), `token`
+   (the **result** token, `xtk_` prefixed — a different token from the `xit_`
+   init token), and `user_id` (if you supplied one).
+5. Your backend calls `GET /verify/v1/result/{token}` with the `xtk_` result
+   token to get the result
 6. You make the authorization decision based on the verified result
 
 ## API Reference
@@ -65,17 +69,22 @@ $xident = new \Xident\SDK\Client(
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `callback_url` | string | Yes | HTTPS URL for callback (localhost OK for dev) |
-| `min_age` | int | No | 12, 15, 18, 21, or 25. Default: 18 |
+| `min_age` | int | Yes* | 1–99. **Required** for age verification — omitting it (or `0`) returns HTTP 400. Optional (0–99) only when `purpose` is `id_verification`. |
 | `success_url` | string | No | Redirect on success |
 | `failed_url` | string | No | Redirect on failure |
-| `user_id` | string | No | Your internal user ID |
-| `theme` | string | No | `light`, `dark`, `auto` |
-| `locale` | string | No | `en`, `de`, `es`, `fr`, `it`, `pt`, `nl`, `pl`, `tr`, `ar`, `ja` |
-| `metadata` | string | No | Custom JSON (max 1KB) |
+| `user_id` | string | No | Your internal user ID (echoed back on the callback) |
+| `theme` | string | No | `light`, `dark`, or `system`. Unknown values coerce to `system`. |
+| `locale` | string | No | `en`, `es`, `fr`, `de`, `pt`, `ar`, `zh`, `ja`, `hi`, `nl`. Unknown → `en`. |
+| `metadata` | string | No | Opaque string echoed back to you (e.g. a JSON blob or plan ID). Xident stores it verbatim and never parses it. |
+| `purpose` | string | No | `age_verification` (default) or `id_verification`. |
 
-Returns: `$result->token`, `$result->verifyUrl`
+Returns: `$result->token` (init token, `xit_` prefixed), `$result->verifyUrl`
 
 ### verification()->getResult(token): SessionResult
+
+Pass the **result** token (`xtk_`) from the callback — not the `xit_` init token.
+
+Properties: `$result->token` (the `xtk_` result token), `$result->status`, `$result->ageResult`, `$result->countryCode`, `$result->regime`, `$result->remainingAttempts`, `$result->createdAt`, `$result->expiresAt`.
 
 Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `ageBracket()`, `method()`
 
@@ -160,7 +169,7 @@ See `examples/` for Symfony, WordPress, and webhook examples.
 ## Testing
 
 ```bash
-composer test              # 96 tests, 200 assertions
+composer test              # 85 tests, 172 assertions
 composer test:coverage     # With HTML coverage report
 ```
 

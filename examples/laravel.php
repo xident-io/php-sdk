@@ -40,7 +40,7 @@ class VerificationController extends Controller
             'success_url'  => route('verification.success'),
             'failed_url'   => route('verification.failed'),
             'user_id'      => (string) $request->user()?->id,
-            'theme'        => 'auto',
+            'theme'        => 'system',
         ]);
 
         return redirect($session->verifyUrl);

@@ -22,7 +22,7 @@ $xident = new Client(apiKey: $_ENV['XIDENT_SECRET_KEY']);
 
 $session = $xident->verification()->init([
     'callback_url' => 'https://yoursite.com/verify-callback',
-    'min_age'      => 18,        // 12, 15, 18, 21, or 25
+    'min_age'      => 18,        // required, 1-99 (omitting or 0 → HTTP 400)
     'success_url'  => 'https://yoursite.com/welcome',
     'failed_url'   => 'https://yoursite.com/sorry',
     'user_id'      => $userId,   // optional

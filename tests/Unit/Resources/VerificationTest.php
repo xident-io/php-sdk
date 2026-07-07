@@ -95,14 +95,18 @@ final class VerificationTest extends TestCase
             'success_url' => 'https://example.com/success',
             'failed_url' => 'https://example.com/failed',
             'user_id' => 'usr_456',
-            'theme' => 'light',
+            'theme' => 'system',
             'locale' => 'en',
             'metadata' => '{"plan":"pro"}',
+            'purpose' => 'age_verification',
         ]);
 
         $body = json_decode($transport->getLastRequest()['body'], true);
         $this->assertSame('https://example.com/success', $body['success_url']);
         $this->assertSame('https://example.com/failed', $body['failed_url']);
+        $this->assertSame('system', $body['theme']);
+        $this->assertSame('{"plan":"pro"}', $body['metadata']);
+        $this->assertSame('age_verification', $body['purpose']);
     }
 
     // --- getResult() ---
@@ -111,20 +115,19 @@ final class VerificationTest extends TestCase
     {
         $transport = new MockTransport();
         $transport->queueSuccess([
-            'id' => 'sess_abc',
+            'token' => 'xtk_abc',
             'status' => 'completed',
             'age_result' => ['verified_bracket' => 18, 'method' => 'ml_fast', 'confidence' => 0.95],
             'liveness_result' => ['passed' => true],
             'country_code' => 'US',
-            'min_age' => 18,
             'created_at' => '2026-03-23T12:00:00Z',
-            'completed_at' => '2026-03-23T12:01:00Z',
+            'expires_at' => '2026-03-23T12:10:00Z',
         ]);
 
-        $result = $this->client($transport)->verification()->getResult('sess_abc');
+        $result = $this->client($transport)->verification()->getResult('xtk_abc');
 
         $this->assertInstanceOf(SessionResult::class, $result);
-        $this->assertSame('sess_abc', $result->id);
+        $this->assertSame('xtk_abc', $result->token);
         $this->assertTrue($result->isVerified());
         $this->assertTrue($result->isCompleted());
         $this->assertFalse($result->isPending());
@@ -136,13 +139,13 @@ final class VerificationTest extends TestCase
     public function testGetResultSendsGetRequest(): void
     {
         $transport = new MockTransport();
-        $transport->queueSuccess(['id' => 'sess_x', 'status' => 'pending', 'created_at' => '2026-01-01']);
+        $transport->queueSuccess(['token' => 'xtk_x', 'status' => 'pending', 'created_at' => '2026-01-01']);
 
-        $this->client($transport)->verification()->getResult('sess_x');
+        $this->client($transport)->verification()->getResult('xtk_x');
 
         $req = $transport->getLastRequest();
         $this->assertSame('GET', $req['method']);
-        $this->assertStringContainsString('/result/sess_x', $req['url']);
+        $this->assertStringContainsString('/result/xtk_x', $req['url']);
     }
 
     public function testGetResultNotFound(): void
@@ -167,13 +170,13 @@ final class VerificationTest extends TestCase
     {
         $transport = new MockTransport();
         $transport->queueSuccess([
-            'id' => 'sess_p',
+            'token' => 'xtk_p',
             'status' => 'in_progress',
             'created_at' => '2026-03-23T12:00:00Z',
             'remaining_attempts' => 3,
         ]);
 
-        $result = $this->client($transport)->verification()->getResult('sess_p');
+        $result = $this->client($transport)->verification()->getResult('xtk_p');
 
         $this->assertTrue($result->isPending());
         $this->assertFalse($result->isVerified());
