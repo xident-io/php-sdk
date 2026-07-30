@@ -30,6 +30,9 @@ try {
 
     // Handle the event
     switch ($event['type']) {
+        // 'session.completed' is the pre-July-2026 name; an endpoint
+        // registered before then still receives it.
+        case 'session.success':
         case 'session.completed':
             $token  = $event['data']['token'] ?? '';
             $status = $event['data']['status'] ?? '';

@@ -30,7 +30,7 @@ final class WebhooksTest extends TestCase
 
     public function testValidSignature(): void
     {
-        $payload = '{"type":"session.completed","data":{"session_id":"abc"}}';
+        $payload = '{"type":"session.success","data":{"session_id":"abc"}}';
         $signature = $this->makeSignature($payload, $this->secret);
 
         $result = $this->webhooks->verifySignature($payload, $signature, $this->secret);
@@ -39,7 +39,7 @@ final class WebhooksTest extends TestCase
 
     public function testInvalidSignatureThrows(): void
     {
-        $payload = '{"type":"session.completed"}';
+        $payload = '{"type":"session.success"}';
         $signature = 't=' . time() . ',v1=invalid_hmac_hex';
 
         $this->expectException(ValidationException::class);
@@ -49,7 +49,7 @@ final class WebhooksTest extends TestCase
 
     public function testExpiredTimestampThrows(): void
     {
-        $payload = '{"type":"session.completed"}';
+        $payload = '{"type":"session.success"}';
         $oldTimestamp = time() - 600; // 10 minutes ago
         $signature = $this->makeSignature($payload, $this->secret, $oldTimestamp);
 
@@ -60,7 +60,7 @@ final class WebhooksTest extends TestCase
 
     public function testToleranceZeroDisablesReplayProtection(): void
     {
-        $payload = '{"type":"session.completed"}';
+        $payload = '{"type":"session.success"}';
         $oldTimestamp = time() - 86400; // 24 hours ago
         $signature = $this->makeSignature($payload, $this->secret, $oldTimestamp);
 
@@ -106,7 +106,7 @@ final class WebhooksTest extends TestCase
     public function testConstructEventReturnsEvent(): void
     {
         $payload = json_encode([
-            'type' => 'session.completed',
+            'type' => 'session.success',
             'data' => ['session_id' => 'sess_abc', 'status' => 'success'],
             'id' => 'evt_001',
             'created' => 1710345600,
@@ -115,7 +115,7 @@ final class WebhooksTest extends TestCase
 
         $event = $this->webhooks->constructEvent($payload, $signature, $this->secret);
 
-        $this->assertSame('session.completed', $event['type']);
+        $this->assertSame('session.success', $event['type']);
         $this->assertSame('sess_abc', $event['data']['session_id']);
         $this->assertSame('evt_001', $event['id']);
         $this->assertSame(1710345600, $event['created']);

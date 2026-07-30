@@ -62,7 +62,7 @@ $event = $xident->webhooks()->constructEvent(
 );
 
 match ($event['type']) {
-    'session.completed' => handleCompleted($event['data']),
+    'session.success', 'session.completed' => handleVerified($event['data']),
     'session.failed' => handleFailed($event['data']),
     default => null,
 };
