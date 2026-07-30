@@ -44,7 +44,7 @@ if ($result->isVerified()) {
 2. SDK returns an init token (`xit_`) + verify URL. You redirect the user there.
 3. User completes verification on `verify.xident.io` (liveness + age check)
 4. Widget redirects the browser back to your `callback_url` with query params:
-   `status` (`success`, `failed`, or `cancelled` — British spelling), `token`
+   `status` (`success`, `failed`, or `canceled`), `token`
    (the **result** token, `xtk_` prefixed — a different token from the `xit_`
    init token), and `user_id` (if you supplied one).
 5. Your backend calls `GET /verify/v1/result/{token}` with the `xtk_` result

@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `isVerified()` returned **false for every verified user**. The API renamed the
+  pass verdict from `completed` to `success` (July 2026) and this SDK still
+  compared against the old literal.
+
 ### Changed
+- `SessionStatus::Success` is the pass verdict. `SessionStatus::Completed` is
+  now a **deprecated constant aliasing `Success`**, not a case — a backed enum
+  cannot have two cases with the same value, and the alias has to resolve to
+  the new value so existing `=== SessionStatus::Completed` comparisons keep
+  being *correct*, not merely keep parsing.
+- `SessionStatus::normalize()` maps a legacy `completed` off the wire, so this
+  SDK still works against a deployment older than the rename.
+- `SessionResult::$reason` added — why a non-success terminal status came out
+  that way (`age_below_threshold`, `dob_unreadable`, `face_mismatch`,
+  `face_not_detected`, `docverify_reject`, `blacklist_match`). Declared last in
+  the constructor so positional construction is unaffected.
+- The browser callback's `?status=` uses `success | failed | canceled` — the
+  same three words as the result endpoint. The earlier note in this file
+  claiming it uses the British `cancelled` was correct at the time and is no
+  longer true.
+- `isCompleted()` deprecated in favour of `isVerified()`. Its docblock claimed
+  "any outcome", which the code never did — it has always returned the pass
+  verdict only. For "reached any terminal state" use `isTerminal()`.
+
 - **BREAKING** `SessionResult::$id` renamed to `$token`, now populated from the
   `/verify/v1/result/{token}` DTO's `token` field (the `xtk_` result token). The
   old `$id` read a non-existent `id` key and was always empty.

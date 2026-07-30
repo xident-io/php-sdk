@@ -116,7 +116,7 @@ final class VerificationTest extends TestCase
         $transport = new MockTransport();
         $transport->queueSuccess([
             'token' => 'xtk_abc',
-            'status' => 'completed',
+            'status' => 'success',
             'age_result' => ['verified_bracket' => 18, 'method' => 'ml_fast', 'confidence' => 0.95],
             'liveness_result' => ['passed' => true],
             'country_code' => 'US',

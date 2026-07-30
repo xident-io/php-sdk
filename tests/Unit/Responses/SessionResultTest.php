@@ -16,7 +16,7 @@ final class SessionResultTest extends TestCase
         // `xtk_` result token as `token` and does NOT include min_age/completed_at.
         $result = SessionResult::fromArray([
             'token' => 'xtk_001',
-            'status' => 'completed',
+            'status' => 'success',
             'age_result' => ['verified_bracket' => 18, 'method' => 'ml_fast'],
             'liveness_result' => ['passed' => true],
             'country_code' => 'DE',
@@ -25,16 +25,16 @@ final class SessionResultTest extends TestCase
         ]);
 
         $this->assertSame('xtk_001', $result->token);
-        $this->assertSame(SessionStatus::Completed, $result->status);
+        $this->assertSame(SessionStatus::Success, $result->status);
         $this->assertSame(18, $result->ageBracket());
         $this->assertSame('ml_fast', $result->method());
         $this->assertSame('DE', $result->countryCode);
         $this->assertSame('2026-03-23T12:10:00Z', $result->expiresAt);
     }
 
-    public function testIsVerifiedOnlyForCompleted(): void
+    public function testIsVerifiedOnlyForSuccess(): void
     {
-        $completed = SessionResult::fromArray(['token' => 'a', 'status' => 'completed', 'created_at' => '']);
+        $completed = SessionResult::fromArray(['token' => 'a', 'status' => 'success', 'created_at' => '']);
         $failed = SessionResult::fromArray(['token' => 'b', 'status' => 'failed', 'created_at' => '']);
         $pending = SessionResult::fromArray(['token' => 'c', 'status' => 'pending', 'created_at' => '']);
 
@@ -47,7 +47,7 @@ final class SessionResultTest extends TestCase
     {
         $pending = SessionResult::fromArray(['token' => 'a', 'status' => 'pending', 'created_at' => '']);
         $inProgress = SessionResult::fromArray(['token' => 'b', 'status' => 'in_progress', 'created_at' => '']);
-        $completed = SessionResult::fromArray(['token' => 'c', 'status' => 'completed', 'created_at' => '']);
+        $completed = SessionResult::fromArray(['token' => 'c', 'status' => 'success', 'created_at' => '']);
 
         $this->assertTrue($pending->isPending());
         $this->assertTrue($inProgress->isPending());
@@ -56,7 +56,7 @@ final class SessionResultTest extends TestCase
 
     public function testIsTerminalStates(): void
     {
-        $terminal = ['completed', 'failed', 'canceled', 'claimed'];
+        $terminal = ['success', 'failed', 'canceled', 'claimed'];
         $nonTerminal = ['pending', 'in_progress'];
 
         foreach ($terminal as $status) {
@@ -73,7 +73,7 @@ final class SessionResultTest extends TestCase
     public function testAgeBracketFromEstimatedAge(): void
     {
         $result = SessionResult::fromArray([
-            'token' => 'x', 'status' => 'completed', 'created_at' => '',
+            'token' => 'x', 'status' => 'success', 'created_at' => '',
             'age_result' => ['estimated_age' => 25],
         ]);
         $this->assertSame(25, $result->ageBracket());

@@ -39,18 +39,40 @@ final readonly class SessionResult
         public ?int $remainingAttempts = null,
         public string $createdAt = '',
         public ?string $expiresAt = null,
+        /**
+         * Why a non-success terminal status came out that way. Empty when
+         * $status is Success.
+         *
+         * Known values: age_below_threshold, dob_unreadable, face_mismatch,
+         * face_not_detected, docverify_reject, blacklist_match. Treat the set
+         * as open — new reasons may be added, so always handle a default.
+         *
+         * Declared last so existing positional construction keeps working.
+         */
+        public string $reason = '',
     ) {}
 
-    /** Session completed successfully (age verification passed). */
+    /**
+     * The user PASSED verification. This is the check to gate on.
+     *
+     * False for a session that ran all the way through the flow but did not
+     * meet the age threshold — that session is Failed with $reason
+     * `age_below_threshold`.
+     */
     public function isVerified(): bool
     {
-        return $this->status === SessionStatus::Completed;
+        return $this->status === SessionStatus::Success;
     }
 
-    /** Session completed (any outcome). */
+    /**
+     * @deprecated Alias of {@see self::isVerified()}. Its docblock used to
+     * claim "any outcome", which the code never did — it has always returned
+     * the pass verdict only. For "reached any terminal state" use
+     * {@see self::isTerminal()}.
+     */
     public function isCompleted(): bool
     {
-        return $this->status === SessionStatus::Completed;
+        return $this->isVerified();
     }
 
     /** Session failed verification. */
@@ -93,7 +115,12 @@ final readonly class SessionResult
     {
         return new self(
             token: (string)($data['token'] ?? ''),
-            status: SessionStatus::tryFrom((string)($data['status'] ?? 'pending')) ?? SessionStatus::Pending,
+            // normalize() maps a legacy `completed` from a pre-July-2026
+            // deployment onto Success. An unrecognised value falls back to
+            // Pending, which is neither terminal nor verified — so a caller
+            // polling for an outcome keeps polling rather than treating
+            // something it does not understand as a finished verification.
+            status: SessionStatus::normalize((string)($data['status'] ?? 'pending')) ?? SessionStatus::Pending,
             livenessResult: $data['liveness_result'] ?? null,
             ageResult: $data['age_result'] ?? null,
             ocrResult: $data['ocr_result'] ?? null,
@@ -105,6 +132,7 @@ final readonly class SessionResult
             remainingAttempts: isset($data['remaining_attempts']) ? (int)$data['remaining_attempts'] : null,
             createdAt: (string)($data['created_at'] ?? ''),
             expiresAt: $data['expires_at'] ?? null,
+            reason: (string)($data['reason'] ?? ''),
         );
     }
 }
