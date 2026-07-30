@@ -37,6 +37,9 @@ final class Verification
      * - `metadata`: an OPAQUE string echoed back to you (e.g. a JSON blob or plan
      *   ID). Xident stores it verbatim and never parses it.
      * - `purpose`: `age_verification` (default) or `id_verification`.
+     * - `verification_mode`: `auto` (default), `document` to force document +
+     *   face match, or `facial` to force on-device age estimation. Composes
+     *   with `min_age` rather than replacing it.
      *
      * @param array{
      *   callback_url: string,
@@ -48,6 +51,7 @@ final class Verification
      *   locale?: string,
      *   metadata?: string,
      *   purpose?: string,
+     *   verification_mode?: string,
      * } $params
      *
      * @throws \Xident\SDK\Exceptions\ValidationException If required params are missing
