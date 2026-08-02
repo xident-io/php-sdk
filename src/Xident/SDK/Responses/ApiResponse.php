@@ -15,7 +15,9 @@ namespace Xident\SDK\Responses;
 final readonly class ApiResponse
 {
     /**
-     * @param array<string, mixed>|null $data
+     * @param array<array-key, mixed>|null $data Envelope payload. Usually a JSON
+     *        object (string keys), but list endpoints such as GET /blacklist
+     *        return a JSON array, so the keys can be integers.
      * @param array{code: string, message: string}|null $error
      * @param array<string, mixed>|null $meta
      */

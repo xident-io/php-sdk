@@ -67,6 +67,7 @@ final class HttpClient
     }
 
     /**
+     * @param non-empty-string $method
      * @param array<string, string|int> $queryParams
      * @throws XidentException
      */
@@ -80,7 +81,7 @@ final class HttpClient
         $response = ApiResponse::fromJson($raw['body'], $raw['status']);
 
         if (!$response->success) {
-            $this->throwException($response);
+            $this->throwException($response, $raw['headers']);
         }
 
         return $response;
@@ -88,6 +89,7 @@ final class HttpClient
 
     /**
      * @param array<string, string|int> $queryParams
+     * @return non-empty-string Always absolute — cURL is handed this verbatim.
      */
     private function buildUrl(string $path, array $queryParams = []): string
     {
@@ -121,6 +123,8 @@ final class HttpClient
     }
 
     /**
+     * @param non-empty-string $method
+     * @param non-empty-string $url
      * @param list<string> $headers
      * @return array{status: int, body: string, headers: array<string, string>}
      * @throws NetworkException
@@ -162,6 +166,8 @@ final class HttpClient
     }
 
     /**
+     * @param non-empty-string $method
+     * @param non-empty-string $url
      * @param list<string> $headers
      * @return array{status: int, body: string, headers: array<string, string>}
      * @throws NetworkException
@@ -244,8 +250,11 @@ final class HttpClient
         return (int)(1000 * pow(2, $attempt - 1));
     }
 
-    /** @throws XidentException */
-    private function throwException(ApiResponse $response): never
+    /**
+     * @param array<string, string> $responseHeaders Response headers, as returned by the transport.
+     * @throws XidentException
+     */
+    private function throwException(ApiResponse $response, array $responseHeaders = []): never
     {
         $message = $response->errorMessage();
         $errorCode = $response->errorCode();
@@ -255,11 +264,32 @@ final class HttpClient
         $exception = match (true) {
             $status === 401, $status === 403 => new AuthenticationException($message, $errorCode, $requestId, $status),
             $status === 404                  => new NotFoundException($message, $errorCode, $requestId, $status),
-            $status === 429                  => (new RateLimitException($message, $errorCode, $requestId, $status)),
+            $status === 429                  => (new RateLimitException($message, $errorCode, $requestId, $status))
+                ->setRetryAfter($this->retryAfterSeconds($responseHeaders)),
             $status >= 500                   => new ServerException($message, $errorCode, $requestId, $status),
             default                          => new ValidationException($message, $errorCode, $requestId, $status),
         };
 
         throw $exception;
+    }
+
+    /**
+     * Read `Retry-After` off a 429 response.
+     *
+     * Only the delta-seconds form is honoured — that is what the Xident API
+     * sends. The HTTP-date form (RFC 9110 §10.2.3) is deliberately NOT parsed:
+     * turning it into a wait would mean trusting the caller's clock against
+     * ours, and a wrong answer here is worse than no answer. Callers get null
+     * and fall back to their own backoff.
+     *
+     * @param array<string, string> $responseHeaders
+     */
+    private function retryAfterSeconds(array $responseHeaders): ?int
+    {
+        // Header names are case-insensitive; the cURL transport lower-cases
+        // them but an injected transport may not.
+        $value = trim((string)(array_change_key_case($responseHeaders)['retry-after'] ?? ''));
+
+        return ctype_digit($value) ? (int)$value : null;
     }
 }

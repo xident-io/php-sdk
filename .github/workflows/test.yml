@@ -3,13 +3,42 @@ name: Test
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+    tags: ["v*"]
 
 permissions:
   contents: read
 
 jobs:
   test:
-    name: Test
+    name: Test (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep the LOW end equal to composer.json's require.php floor. That is
+        # what catches syntax the floor does not support — `readonly class` is
+        # 8.2, and a manifest claiming 8.1 shipped nine unparseable files.
+        php: ["8.2", "8.3", "8.4"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run tests
+        run: composer test
+
+  coverage:
+    name: Coverage floor
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,9 +48,32 @@ jobs:
         with:
           php-version: "8.3"
           tools: composer
+          coverage: pcov
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Run tests
-        run: composer test
+      - name: Run tests with coverage
+        run: vendor/bin/phpunit --coverage-text --coverage-clover build/clover.xml
+
+      # The floor is a ratchet: raise it when coverage rises, never lower it.
+      - name: Enforce the coverage floor
+        run: php scripts/check-coverage.php build/clover.xml 100
+
+  version:
+    name: Version matches the tag
+    runs-on: ubuntu-latest
+    # Only meaningful on a tag push — that is the moment the constant and the
+    # tag can disagree, and the moment Packagist reads the tag.
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer
+
+      - name: Check Config::SDK_VERSION against ${{ github.ref_name }}
+        run: php scripts/check-version.php "${GITHUB_REF_NAME}"

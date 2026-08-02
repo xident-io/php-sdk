@@ -27,7 +27,7 @@ final class Webhooks
      * @param string $secret    Webhook signing secret from dashboard (whsec_xxx)
      * @param int    $tolerance Maximum age in seconds (default 300 = 5 minutes)
      *
-     * @return array{type: string, data: array<string, mixed>, id?: string, created?: int}
+     * @return array{type: string, data: array<array-key, mixed>, id: string|null, created: int|null}
      *
      * @throws ValidationException If signature is invalid or too old
      */
@@ -112,7 +112,11 @@ final class Webhooks
     /**
      * Parse a webhook event body.
      *
-     * @return array{type: string, data: array<string, mixed>, id?: string, created?: int}
+     * All four keys are ALWAYS present. `id` and `created` are null when the
+     * payload does not carry them — they are never absent, so read them with
+     * `?? null` semantics in mind rather than array_key_exists().
+     *
+     * @return array{type: string, data: array<array-key, mixed>, id: string|null, created: int|null}
      *
      * @throws ValidationException If payload is not valid JSON
      */
@@ -124,10 +128,14 @@ final class Webhooks
             throw new ValidationException('Invalid webhook payload — not valid JSON', 'INVALID_PAYLOAD');
         }
 
+        $id = $decoded['id'] ?? $decoded['event_id'] ?? null;
+
         return [
             'type'    => (string)($decoded['type'] ?? $decoded['event_type'] ?? ''),
             'data'    => (array)($decoded['data'] ?? $decoded),
-            'id'      => $decoded['id'] ?? $decoded['event_id'] ?? null,
+            // Cast like every sibling field: the documented type has always been
+            // string, and an uncast value leaked whatever JSON happened to hold.
+            'id'      => $id === null ? null : (string)$id,
             'created' => isset($decoded['created']) ? (int)$decoded['created'] : null,
         ];
     }

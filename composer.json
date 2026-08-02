@@ -10,7 +10,7 @@
         "issues": "https://github.com/xident-io/xident-php/issues"
     },
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
         "ext-curl": "*",
         "ext-json": "*"
     },
@@ -29,7 +29,11 @@
     },
     "scripts": {
         "test": "phpunit",
-        "test:coverage": "phpunit --coverage-text --coverage-html=coverage"
+        "test:coverage": "phpunit --coverage-text --coverage-html=coverage",
+        "check-version": "@php scripts/check-version.php"
+    },
+    "scripts-descriptions": {
+        "check-version": "Assert Config::SDK_VERSION matches the git tag being released. NOTE: this package deliberately has no `version` field — Packagist reads the tag."
     },
     "minimum-stability": "stable",
     "prefer-stable": true

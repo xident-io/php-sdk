@@ -143,4 +143,59 @@ final class WebhooksTest extends TestCase
         $event = $this->webhooks->parseEvent('{"event_type":"session.expired","data":{}}');
         $this->assertSame('session.expired', $event['type']);
     }
+
+    /**
+     * All four keys are always present — null, never absent. Integrators branch
+     * on the shape of this array, so the shape has to be constant.
+     */
+    public function testParseEventAlwaysReturnsAllFourKeys(): void
+    {
+        $event = $this->webhooks->parseEvent('{"type":"session.failed","data":{}}');
+
+        $this->assertSame(['type', 'data', 'id', 'created'], array_keys($event));
+        $this->assertNull($event['id']);
+        $this->assertNull($event['created']);
+    }
+
+    public function testParseEventReadsTheEventIdAlias(): void
+    {
+        $event = $this->webhooks->parseEvent('{"type":"session.success","data":{},"event_id":"evt_alias"}');
+
+        $this->assertSame('evt_alias', $event['id']);
+    }
+
+    /** `id` is documented as a string, so a numeric id arrives as one. */
+    public function testParseEventCoercesANumericIdToString(): void
+    {
+        $event = $this->webhooks->parseEvent('{"type":"session.success","data":{},"id":12345}');
+
+        $this->assertSame('12345', $event['id']);
+    }
+
+    /** `created` is documented as an int, so a string timestamp arrives as one. */
+    public function testParseEventCoercesCreatedToInt(): void
+    {
+        $event = $this->webhooks->parseEvent('{"type":"session.success","data":{},"created":"1710345600"}');
+
+        $this->assertSame(1710345600, $event['created']);
+    }
+
+    /** With no `data` object, the whole payload is the data. */
+    public function testParseEventFallsBackToTheWholePayloadAsData(): void
+    {
+        $event = $this->webhooks->parseEvent('{"type":"session.success","session_id":"sess_x"}');
+
+        $this->assertSame('sess_x', $event['data']['session_id']);
+        $this->assertSame('session.success', $event['data']['type']);
+    }
+
+    /** A JSON array is valid JSON but carries no event fields. */
+    public function testParseEventOnAJsonArrayYieldsAnEmptyType(): void
+    {
+        $event = $this->webhooks->parseEvent('[1,2,3]');
+
+        $this->assertSame('', $event['type']);
+        $this->assertSame([1, 2, 3], $event['data']);
+        $this->assertNull($event['id']);
+    }
 }

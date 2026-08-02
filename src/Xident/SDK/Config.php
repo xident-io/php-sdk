@@ -54,7 +54,14 @@ final readonly class Config
         $this->headers = $headers;
     }
 
-    /** Full API URL (base + version prefix). */
+    /**
+     * Full API URL (base + version prefix).
+     *
+     * Never empty: the version prefix is appended unconditionally, so even a
+     * baseUrl of "/" yields a usable path. cURL relies on that.
+     *
+     * @return non-empty-string
+     */
     public function apiUrl(): string
     {
         return $this->baseUrl . '/' . self::API_VERSION;

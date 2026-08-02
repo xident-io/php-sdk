@@ -1,10 +1,10 @@
 # Xident PHP SDK
 
-Server-side PHP SDK for [Xident](https://xident.io) age and identity verification. Zero external dependencies. Works with Laravel, Symfony, WordPress, and any PHP 8.1+ application.
+Server-side PHP SDK for [Xident](https://xident.io) age and identity verification. Zero external dependencies. Works with Laravel, Symfony, WordPress, and any PHP 8.2+ application.
 
 ## Requirements
 
-- PHP 8.1+
+- PHP 8.2+ (the response objects are `readonly` classes, which are 8.2 syntax)
 - cURL extension (bundled with PHP)
 - JSON extension (bundled with PHP)
 

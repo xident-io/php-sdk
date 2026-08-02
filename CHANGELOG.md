@@ -33,8 +33,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `isVerified()` returned **false for every verified user**. The API renamed the
   pass verdict from `completed` to `success` (July 2026) and this SDK still
   compared against the old literal.
+- `RateLimitException::getRetryAfter()` **always returned null**. The setter
+  existed and was never called, so the `Retry-After` header the API sends on a
+  429 was parsed off the wire and then thrown away. It is now read from the
+  response and attached to the exception. Only the delta-seconds form is
+  honoured; an HTTP-date still yields null rather than a wait derived from a
+  clock we do not control.
+- `Webhooks::parseEvent()` returned the event `id` uncast, so a numeric id
+  leaked as an int despite the documented type being `string` since 1.0.0. It
+  is now cast like every sibling field.
 
 ### Changed
+- **`require.php` raised from `^8.1` to `^8.2`.** The SDK never actually ran on
+  8.1: `Config` and every class in `Responses/` are declared
+  `final readonly class`, which is PHP 8.2 syntax, so nine of the twenty-three
+  source files were parse errors on 8.1 and the client could not be loaded at
+  all. The manifest, README and this file all claimed 8.1+. Composer will now
+  refuse the install instead of letting it fatal at runtime. PHP 8.1 reached
+  end of life in December 2025.
+- `Webhooks::parseEvent()` / `constructEvent()` return-type docs corrected: the
+  `id` and `created` keys are ALWAYS present (null when the payload omits them),
+  never absent. The old `id?: string` annotation implied otherwise.
 - `SessionStatus::Success` is the pass verdict. `SessionStatus::Completed` is
   now a **deprecated constant aliasing `Success`**, not a case — a backed enum
   cannot have two cases with the same value, and the alias has to resolve to

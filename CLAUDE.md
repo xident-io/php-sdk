@@ -1,7 +1,13 @@
 # CLAUDE.md — Xident PHP SDK
 
 ## Overview
-Server-side PHP 8.1+ SDK for Xident age verification. Zero external dependencies (native cURL only). Works with Laravel, Symfony, WordPress, and plain PHP.
+Server-side PHP 8.2+ SDK for Xident age verification. Zero external dependencies (native cURL only). Works with Laravel, Symfony, WordPress, and plain PHP.
+
+> **8.2 is a hard floor, not a preference.** `Config` and every class in
+> `Responses/` are declared `final readonly class`, which is PHP 8.2 syntax. On
+> 8.1 those files are parse errors, so the SDK cannot load at all. The CI matrix
+> starts at 8.2 for exactly this reason — keep its low end equal to the
+> `require.php` floor in composer.json.
 
 ## Architecture
 ```

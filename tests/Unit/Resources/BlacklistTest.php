@@ -21,6 +21,39 @@ final class BlacklistTest extends TestCase
 
     // --- list() ---
 
+    /**
+     * A row the API should never send, sent anyway.
+     *
+     * fromResponse() guards each row with is_array() because its input is raw
+     * json_decode output, and one malformed row must not take down a whole
+     * page of otherwise-good entries. This asserts the guard skips rather than
+     * fatals, and that the good rows still come through.
+     */
+    public function testListSkipsRowsThatAreNotObjects(): void
+    {
+        $transport = new MockTransport();
+        $transport->queueSuccess(
+            [
+                ['id' => 7, 'reason' => 'fraud attempt', 'source' => 'session', 'created_at' => '2026-08-01T10:00:00Z'],
+                'a bare string where an object belongs',
+                null,
+                42,
+                ['id' => 9, 'reason' => 'second good row', 'source' => 'image', 'created_at' => '2026-08-01T12:00:00Z'],
+            ],
+            ['pagination' => ['page' => 1, 'per_page' => 20, 'total' => 5, 'total_pages' => 1]],
+        );
+
+        $list = $this->client($transport)->blacklist()->list();
+
+        $this->assertCount(2, $list->entries);
+        $this->assertSame(2, $list->count());
+        $this->assertSame([7, 9], array_map(static fn ($entry) => $entry->id, $list->entries));
+        $this->assertSame('fraud attempt', $list->entries[0]->reason);
+        $this->assertSame('second good row', $list->entries[1]->reason);
+        // Pagination comes from meta, so it still reports what the server said.
+        $this->assertSame(5, $list->total);
+    }
+
     public function testListReturnsEntriesWithPagination(): void
     {
         $transport = new MockTransport();

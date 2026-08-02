@@ -37,7 +37,9 @@ final readonly class BlacklistEntryList
     }
 
     /**
-     * @param array<int, array<string, mixed>>|null $data Envelope `data` (the rows)
+     * @param array<array-key, mixed>|null $data Envelope `data` (the rows). Typed
+     *        loosely on purpose: this is raw json_decode output, so a row that is
+     *        not an object is possible and is skipped rather than fatal.
      * @param array<string, mixed>|null $meta Envelope `meta` (holds `pagination`)
      */
     public static function fromResponse(?array $data, ?array $meta): self

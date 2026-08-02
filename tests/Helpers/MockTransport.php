@@ -19,6 +19,7 @@ final class MockTransport
     private array $requests = [];
 
     /**
+     * @param array<array-key, mixed>|string $body Encoded to JSON when given as an array.
      * @param array<string, string> $headers
      */
     public function queueResponse(int $status, array|string $body, array $headers = []): self
@@ -28,7 +29,11 @@ final class MockTransport
         return $this;
     }
 
-    /** Queue a successful API response with the standard envelope. */
+    /**
+     * Queue a successful API response with the standard envelope.
+     *
+     * @param array<string, mixed>|null $meta
+     */
     public function queueSuccess(mixed $data, ?array $meta = null): self
     {
         $envelope = ['success' => true, 'data' => $data];
