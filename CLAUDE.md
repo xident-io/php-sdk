@@ -5,7 +5,7 @@ Server-side PHP 8.1+ SDK for Xident age verification. Zero external dependencies
 
 ## Architecture
 ```
-Client → Resources (Verification, Webhooks)
+Client → Resources (Verification, Webhooks, Face2FA, Blacklist)
        → HttpClient (cURL wrapper, accepts mock transport for testing)
        → Config (readonly, immutable)
        → Responses (readonly value objects)
@@ -20,7 +20,7 @@ Client → Resources (Verification, Webhooks)
 - `src/Xident/SDK/Responses/` — Readonly response objects
 - `src/Xident/SDK/Exceptions/` — Exception hierarchy
 - `src/Xident/SDK/Enums/` — PHP enums (SessionStatus)
-- `tests/` — PHPUnit tests (96 tests, 100% coverage)
+- `tests/` — PHPUnit tests (133 tests)
 - `examples/` — Framework-specific integration examples
 
 ## API Endpoints Used
@@ -29,11 +29,20 @@ Client → Resources (Verification, Webhooks)
 |----------|-----------|------|
 | `POST /verify/v1/init` | `verification()->init()` | X-API-Key |
 | `GET /verify/v1/result/{token}` | `verification()->getResult()` | X-API-Key |
+| `POST /verify/v1/2fa/register` | `face2fa()->register()` | X-API-Key |
+| `POST /verify/v1/2fa/verify` | `face2fa()->verify()` | X-API-Key |
+| `GET /verify/v1/2fa/status/{id}` | `face2fa()->getStatus()` | X-API-Key |
+| `GET /verify/v1/2fa/users/{user_id}` | `face2fa()->getUser()` | X-API-Key |
+| `DELETE /verify/v1/2fa/users/{user_id}` | `face2fa()->deleteUser()` | X-API-Key |
+| `GET /verify/v1/blacklist` | `blacklist()->list()` | X-API-Key |
+| `POST /verify/v1/blacklist/session` | `blacklist()->addBySession()` | X-API-Key |
+| `POST /verify/v1/blacklist/image` | `blacklist()->addByImage()` | X-API-Key |
+| `DELETE /verify/v1/blacklist/{id}` | `blacklist()->remove()` | X-API-Key |
 
 ## Commands
 ```bash
 composer install          # Install dependencies
-composer test             # Run PHPUnit (96 tests)
+composer test             # Run PHPUnit (133 tests)
 composer test:coverage    # Coverage report
 php examples/basic.php    # Run basic example
 ```

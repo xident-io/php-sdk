@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Face2FA` resource (`$client->face2fa()`) — face-based second factor:
+  - `register($userId, $image)` / `verify($userId, $image)` — both async;
+    they return a `Face2FAChallenge` in `processing` status.
+  - `getStatus($challengeId)` — poll for the pass/fail verdict
+    (`Face2FAStatus`; `passed` is null while processing, `failure_reason`
+    carries the taxonomy: invalid_image, no_face_detected, not_enrolled,
+    face_mismatch, blacklist_match, expired, internal_error).
+  - `getUser($userId)` — enrollment state (`Face2FAEnrollment`).
+  - `deleteUser($userId)` — GDPR hard delete, idempotent.
+- `Blacklist` resource (`$client->blacklist()`) — manage your face blacklist:
+  - `list($page, $perPage)` — paginated entries (`BlacklistEntryList` of
+    `BlacklistEntry`; pagination read from the envelope's `meta.pagination`).
+  - `addBySession($sessionToken, $reason)` — blacklist the person from one of
+    your terminal verification sessions (async, returns `processing`; a
+    still-running session is rejected with HTTP 409 → `ValidationException`).
+  - `addByImage($image, $reason)` — blacklist the face in a base64 image
+    (async, returns `processing`).
+  - `remove($id)` — deactivate an entry (un-ban).
+- Response objects: `Face2FAChallenge`, `Face2FAStatus`, `Face2FAEnrollment`,
+  `BlacklistEntry`, `BlacklistEntryList`.
+
 ### Fixed
 - `isVerified()` returned **false for every verified user**. The API renamed the
   pass verdict from `completed` to `success` (July 2026) and this SDK still

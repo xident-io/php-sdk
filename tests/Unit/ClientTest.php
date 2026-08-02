@@ -7,6 +7,8 @@ namespace Xident\SDK\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use Xident\SDK\Client;
 use Xident\SDK\Config;
+use Xident\SDK\Resources\Blacklist;
+use Xident\SDK\Resources\Face2FA;
 use Xident\SDK\Resources\Verification;
 use Xident\SDK\Resources\Webhooks;
 use Xident\SDK\Tests\Helpers\MockTransport;
@@ -49,12 +51,26 @@ final class ClientTest extends TestCase
         $this->assertInstanceOf(Webhooks::class, $client->webhooks());
     }
 
+    public function testFace2faReturnsResource(): void
+    {
+        $client = new Client('sk_test_123');
+        $this->assertInstanceOf(Face2FA::class, $client->face2fa());
+    }
+
+    public function testBlacklistReturnsResource(): void
+    {
+        $client = new Client('sk_test_123');
+        $this->assertInstanceOf(Blacklist::class, $client->blacklist());
+    }
+
     public function testResourcesAreCached(): void
     {
         $client = new Client('sk_test_123');
         $v1 = $client->verification();
         $v2 = $client->verification();
         $this->assertSame($v1, $v2);
+        $this->assertSame($client->face2fa(), $client->face2fa());
+        $this->assertSame($client->blacklist(), $client->blacklist());
     }
 
     public function testVersion(): void

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Xident\SDK;
 
+use Xident\SDK\Resources\Blacklist;
+use Xident\SDK\Resources\Face2FA;
 use Xident\SDK\Resources\Verification;
 use Xident\SDK\Resources\Webhooks;
 
@@ -21,6 +23,8 @@ final class Client
     private HttpClient $http;
     private ?Verification $verification = null;
     private ?Webhooks $webhooks = null;
+    private ?Face2FA $face2fa = null;
+    private ?Blacklist $blacklist = null;
 
     /**
      * @param string      $apiKey     Your Xident secret API key (sk_live_xxx or sk_test_xxx)
@@ -59,6 +63,18 @@ final class Client
     public function webhooks(): Webhooks
     {
         return $this->webhooks ??= new Webhooks();
+    }
+
+    /** Face 2FA resource — enroll and verify faces as a second factor. */
+    public function face2fa(): Face2FA
+    {
+        return $this->face2fa ??= new Face2FA($this->http);
+    }
+
+    /** Blacklist resource — manage your face blacklist. */
+    public function blacklist(): Blacklist
+    {
+        return $this->blacklist ??= new Blacklist($this->http);
     }
 
     /** SDK version string. */
