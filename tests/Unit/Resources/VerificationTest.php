@@ -117,9 +117,14 @@ final class VerificationTest extends TestCase
         $transport->queueSuccess([
             'token' => 'xtk_abc',
             'status' => 'success',
-            'age_result' => ['verified_bracket' => 18, 'method' => 'ml_fast', 'confidence' => 0.95],
-            'liveness_result' => ['passed' => true],
-            'country_code' => 'US',
+            'verified' => true,
+            'verification_mode' => 'full',
+            'checks' => [
+                'liveness' => ['performed' => true, 'passed' => true],
+                'age' => ['performed' => true, 'passed' => true, 'gate' => 18],
+                'document' => ['performed' => false, 'passed' => false],
+                'face_match' => ['performed' => false, 'passed' => false],
+            ],
             'created_at' => '2026-03-23T12:00:00Z',
             'expires_at' => '2026-03-23T12:10:00Z',
         ]);
@@ -133,13 +138,13 @@ final class VerificationTest extends TestCase
         $this->assertFalse($result->isPending());
         $this->assertTrue($result->isTerminal());
         $this->assertSame(18, $result->ageBracket());
-        $this->assertSame('ml_fast', $result->method());
+        $this->assertSame('full', $result->method());
     }
 
     public function testGetResultSendsGetRequest(): void
     {
         $transport = new MockTransport();
-        $transport->queueSuccess(['token' => 'xtk_x', 'status' => 'pending', 'created_at' => '2026-01-01']);
+        $transport->queueSuccess(['token' => 'xtk_x', 'status' => 'pending']);
 
         $this->client($transport)->verification()->getResult('xtk_x');
 
@@ -173,7 +178,6 @@ final class VerificationTest extends TestCase
             'token' => 'xtk_p',
             'status' => 'in_progress',
             'created_at' => '2026-03-23T12:00:00Z',
-            'remaining_attempts' => 3,
         ]);
 
         $result = $this->client($transport)->verification()->getResult('xtk_p');
@@ -181,23 +185,24 @@ final class VerificationTest extends TestCase
         $this->assertTrue($result->isPending());
         $this->assertFalse($result->isVerified());
         $this->assertFalse($result->isTerminal());
-        $this->assertSame(3, $result->remainingAttempts);
     }
 
     public function testGetResultFailedSession(): void
     {
         $transport = new MockTransport();
         $transport->queueSuccess([
-            'id' => 'sess_f',
+            'token' => 'xtk_f',
             'status' => 'failed',
+            'reason' => 'age_below_threshold',
             'created_at' => '2026-03-23T12:00:00Z',
         ]);
 
-        $result = $this->client($transport)->verification()->getResult('sess_f');
+        $result = $this->client($transport)->verification()->getResult('xtk_f');
 
         $this->assertTrue($result->isFailed());
         $this->assertFalse($result->isVerified());
         $this->assertTrue($result->isTerminal());
+        $this->assertSame('age_below_threshold', $result->reason);
     }
 
     public function testGetResultCanceledSession(): void

@@ -9,18 +9,14 @@ use Xident\SDK\Enums\SessionStatus;
 /**
  * Verification session result.
  *
- * Contains the full session state including liveness, age, and OCR results.
+ * Mirrors the v1 tenant result contract — the `data` of
+ * `GET /verify/v1/result/{token}` — which is FROZEN as of 2026-08-03
+ * (additive-only from here on; see `checks` for the per-step detail).
  * Use the helper methods to check the verification outcome.
  */
 final readonly class SessionResult
 {
     /**
-     * @param array<string, mixed>|null $livenessResult
-     * @param array<string, mixed>|null $ageResult
-     * @param array<string, mixed>|null $ocrResult
-     * @param array<string, mixed>|null $faceMatchResult
-     * @param list<string>|null $requiredMethods
-     *
      * Fields mirror the `GET /verify/v1/result/{token}` response DTO. The
      * `$token` here is the RESULT token (`xtk_` prefixed) — the same one the
      * widget appends to your callback URL, NOT the short-lived `xit_` init token.
@@ -28,17 +24,8 @@ final readonly class SessionResult
     public function __construct(
         public string $token,
         public SessionStatus $status,
-        public ?array $livenessResult = null,
-        public ?array $ageResult = null,
-        public ?array $ocrResult = null,
-        public ?array $faceMatchResult = null,
-        public ?string $ocrTaskId = null,
-        public ?string $countryCode = null,
-        public ?string $regime = null,
-        public ?array $requiredMethods = null,
-        public ?int $remainingAttempts = null,
-        public string $createdAt = '',
-        public ?string $expiresAt = null,
+        /** The pass verdict. Redundant with `$status === SessionStatus::Success` — use {@see self::isVerified()}. */
+        public bool $verified,
         /**
          * Why a non-success terminal status came out that way. Empty when
          * $status is Success.
@@ -46,10 +33,18 @@ final readonly class SessionResult
          * Known values: age_below_threshold, dob_unreadable, face_mismatch,
          * face_not_detected, docverify_reject, blacklist_match. Treat the set
          * as open — new reasons may be added, so always handle a default.
-         *
-         * Declared last so existing positional construction keeps working.
          */
-        public string $reason = '',
+        public string $reason,
+        /** How the session verified: e.g. "full" (document/ML) or "token" (Xident ID reuse). Null until known. */
+        public ?string $verificationMode,
+        /** Your own user ID, echoed back if supplied at init. Null if you did not supply one. */
+        public ?string $externalUserId,
+        /** Per-step detail: liveness, age, document, face_match. */
+        public ResultChecks $checks,
+        public string $createdAt,
+        /** RFC 3339 timestamp the session reached a terminal state. Null while still in progress. */
+        public ?string $completedAt,
+        public ?string $expiresAt,
     ) {}
 
     /**
@@ -94,18 +89,19 @@ final readonly class SessionResult
         return $this->status->isTerminal();
     }
 
-    /** The verified age bracket (12, 15, 18, 21, 25) or null if not yet determined. */
+    /**
+     * The verified age bracket (12, 15, 18, 21, 25), or null when the age
+     * check did not pass (including when it never ran).
+     */
     public function ageBracket(): ?int
     {
-        return isset($this->ageResult['verified_bracket'])
-            ? (int)$this->ageResult['verified_bracket']
-            : (isset($this->ageResult['estimated_age']) ? (int)$this->ageResult['estimated_age'] : null);
+        return $this->checks->age->passed ? $this->checks->age->gate : null;
     }
 
-    /** How the age was verified (e.g. "ml_fast", "ocr", "self_declaration"). */
+    /** How the session verified: e.g. "full" or "token". Alias of `$verificationMode`. */
     public function method(): ?string
     {
-        return $this->ageResult['method'] ?? null;
+        return $this->verificationMode;
     }
 
     /**
@@ -121,18 +117,18 @@ final readonly class SessionResult
             // polling for an outcome keeps polling rather than treating
             // something it does not understand as a finished verification.
             status: SessionStatus::normalize((string)($data['status'] ?? 'pending')) ?? SessionStatus::Pending,
-            livenessResult: $data['liveness_result'] ?? null,
-            ageResult: $data['age_result'] ?? null,
-            ocrResult: $data['ocr_result'] ?? null,
-            faceMatchResult: $data['face_match_result'] ?? null,
-            ocrTaskId: $data['ocr_task_id'] ?? null,
-            countryCode: $data['country_code'] ?? null,
-            regime: $data['regime'] ?? null,
-            requiredMethods: $data['required_methods'] ?? null,
-            remainingAttempts: isset($data['remaining_attempts']) ? (int)$data['remaining_attempts'] : null,
-            createdAt: (string)($data['created_at'] ?? ''),
-            expiresAt: $data['expires_at'] ?? null,
+            verified: (bool)($data['verified'] ?? false),
             reason: (string)($data['reason'] ?? ''),
+            verificationMode: isset($data['verification_mode']) ? (string)$data['verification_mode'] : null,
+            externalUserId: isset($data['external_user_id']) ? (string)$data['external_user_id'] : null,
+            // A pre-v1 payload (or anything malformed) has no usable `checks`
+            // object at all — ResultChecks::fromArray([]) degrades every
+            // sub-check to performed:false rather than throwing, which is
+            // what keeps an old deployment's response constructible.
+            checks: ResultChecks::fromArray(is_array($data['checks'] ?? null) ? $data['checks'] : []),
+            createdAt: (string)($data['created_at'] ?? ''),
+            completedAt: isset($data['completed_at']) ? (string)$data['completed_at'] : null,
+            expiresAt: isset($data['expires_at']) ? (string)$data['expires_at'] : null,
         );
     }
 }
