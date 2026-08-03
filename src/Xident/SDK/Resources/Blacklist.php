@@ -50,10 +50,16 @@ final class Blacklist
     /**
      * Blacklist the person from one of YOUR verification sessions.
      *
-     * The server lifts the selfie from the session and blacklists that face.
-     * Only works for sessions that captured a selfie, within the 24-hour
-     * document-retention window, and only after the session has reached a
-     * terminal state (a still-running session is rejected with HTTP 409).
+     * The server derives the face from the session and blacklists it — you
+     * never handle the image. Only works for DOCUMENT verification sessions,
+     * for 12 months after the session (the face embedding is retained for
+     * that period, then permanently deleted), and only after the session has
+     * reached a terminal state (a still-running session is rejected with
+     * HTTP 409).
+     *
+     * A browser-only session never captured a face and is rejected with
+     * SESSION_HAS_NO_FACE_DATA; one past its retention window is rejected
+     * with SESSION_FACE_DATA_EXPIRED.
      *
      * Async — returns `processing`; the entry appears in list() once done.
      *
