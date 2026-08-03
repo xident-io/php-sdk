@@ -2,6 +2,17 @@
 
 Server-side PHP SDK for [Xident](https://xident.io) age and identity verification. Zero external dependencies. Works with Laravel, Symfony, WordPress, and any PHP 8.2+ application.
 
+> **v2.0.0 is a breaking release.** `SessionResult` was rewritten around the
+> frozen v1 result contract (`GET /verify/v1/result/{token}`). Removed:
+> `$ageResult`, `$livenessResult`, `$ocrResult`, `$faceMatchResult`,
+> `$ocrTaskId`, `$countryCode`, `$regime`, `$requiredMethods`,
+> `$remainingAttempts` — none of these were ever part of the actual `/result`
+> response. Added: `$verified`, `$reason`, `$verificationMode`,
+> `$externalUserId`, and `$checks` (per-step `liveness`/`age`/`document`/`face_match`
+> detail — see below). `ageBracket()` and `method()` keep their signatures but
+> now read from `$checks` and `$verificationMode` respectively. See
+> `CHANGELOG.md` for the full list.
+
 ## Requirements
 
 - PHP 8.2+ (the response objects are `readonly` classes, which are 8.2 syntax)
@@ -84,9 +95,20 @@ Returns: `$result->token` (init token, `xit_` prefixed), `$result->verifyUrl`
 
 Pass the **result** token (`xtk_`) from the callback — not the `xit_` init token.
 
-Properties: `$result->token` (the `xtk_` result token), `$result->status`, `$result->ageResult`, `$result->countryCode`, `$result->regime`, `$result->remainingAttempts`, `$result->createdAt`, `$result->expiresAt`.
+Properties: `$result->token` (the `xtk_` result token), `$result->status`, `$result->verified`, `$result->reason`, `$result->verificationMode`, `$result->externalUserId`, `$result->checks`, `$result->createdAt`, `$result->completedAt`, `$result->expiresAt`.
 
-Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `ageBracket()`, `method()`
+`$result->checks` is a `ResultChecks` object with one entry per verification
+step — always present, `performed: false` when a step didn't run for this
+session:
+
+| Check | Type | Fields |
+|-------|------|--------|
+| `checks->liveness` | `CheckResult` | `performed`, `passed` |
+| `checks->age` | `AgeGateCheck` | `performed`, `passed`, `gate` (the age threshold) |
+| `checks->document` | `DocumentCheck` | `performed`, `passed`, `documentType`, `country` |
+| `checks->faceMatch` | `CheckResult` | `performed`, `passed` |
+
+Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `ageBracket()` (⇒ `checks->age->gate` when `checks->age->passed`, else `null`), `method()` (⇒ `$result->verificationMode`)
 
 ### webhooks()->constructEvent(payload, signature, secret): array
 
@@ -169,7 +191,7 @@ See `examples/` for Symfony, WordPress, and webhook examples.
 ## Testing
 
 ```bash
-composer test              # 85 tests, 172 assertions
+composer test              # 187 tests, 518 assertions
 composer test:coverage     # With HTML coverage report
 ```
 

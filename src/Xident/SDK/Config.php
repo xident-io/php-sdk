@@ -13,7 +13,7 @@ final readonly class Config
     public const DEFAULT_TIMEOUT = 30;
     public const DEFAULT_MAX_RETRIES = 3;
     public const API_VERSION = 'verify/v1';
-    public const SDK_VERSION = '1.3.0';
+    public const SDK_VERSION = '2.0.0';
 
     public string $apiKey;
     public string $baseUrl;

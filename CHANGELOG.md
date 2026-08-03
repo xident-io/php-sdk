@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-03
+
+### Changed
+- **BREAKING** `SessionResult` rewritten around the v1 tenant result contract
+  (the `data` of `GET /verify/v1/result/{token}`), which is FROZEN
+  (additive-only) from this release forward:
+  - **Removed** (never reflected the actual `/result` response — the DTO does
+    not return these keys): `$livenessResult`, `$ageResult`, `$ocrResult`,
+    `$faceMatchResult`, `$ocrTaskId`, `$countryCode`, `$regime`,
+    `$requiredMethods`, `$remainingAttempts`.
+  - **Added**: `$verified` (bool, the pass verdict as data, not just a
+    derived helper), `$verificationMode` (`"full"` or `"token"`),
+    `$externalUserId` (your own user ID, echoed back when supplied at init),
+    `$completedAt` (RFC 3339 timestamp, null until the session reaches a
+    terminal state), and `$checks` — a new `ResultChecks` value object with
+    one entry per verification step (`liveness`, `age`, `document`,
+    `face_match`), each always present even when that step never ran for the
+    session (`performed: false`). `$externalUserId` and `$completedAt` were
+    both listed as permanently removed further down in this same
+    `[Unreleased]`-turned-`2.0.0` entry — that call was correct against the
+    contract at the time, and is superseded now that the v1 contract ratified
+    for this release does return both; see the annotated note under
+    `### Removed` below.
+  - `$reason` (added earlier in this entry, unchanged): last-declared
+    constructor parameter, empty string on success.
+  - New value objects, one per file per this SDK's existing `Responses/`
+    convention: `CheckResult` (`performed`, `passed` — used for `liveness` and
+    `face_match`), `AgeGateCheck` (`performed`, `passed`, `gate` — the age
+    threshold the session was configured with, meaningful even when the check
+    never ran), `DocumentCheck` (`performed`, `passed`, `documentType`,
+    `country`).
+  - `ageBracket()` now reads `$checks->age->passed ? $checks->age->gate : null`
+    instead of spelunking a raw `age_result` array. Same signature (`?int`),
+    different source.
+  - `method()` now returns `$verificationMode` instead of a value that used to
+    live inside `$ageResult['method']`. Same signature (`?string`).
+  - `isVerified()`, `isCompleted()` (deprecated alias), `isFailed()`,
+    `isPending()`, `isTerminal()` are unchanged in behavior — all four still
+    key off `$status` alone.
+  - **Tolerant both directions**: the v1 payload parses fully; a pre-2.0
+    verbose payload (the removed `*_result` blobs, `country_code`, `regime`,
+    no `checks` key at all) still constructs without a `TypeError` and
+    `isVerified()` still reports correctly — `$checks` just degrades to
+    `performed: false` on every step, since that shape carries no per-check
+    detail to read.
+- `Config::SDK_VERSION` bumped to `2.0.0`.
+
 ### Added
 - `Face2FA` resource (`$client->face2fa()`) — face-based second factor:
   - `register($userId, $image)` / `verify($userId, $image)` — both async;
@@ -80,6 +127,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `SessionResult` properties `minAge`, `externalUserId`, `startedAt`,
   `completedAt` — the `/result` DTO never returns these, so they were always null.
+  (`externalUserId` and `completedAt` came back in `2.0.0` above: the v1
+  contract ratified for that release does return both. `minAge` and
+  `startedAt` remain gone — the v1 contract has no equivalent field for
+  either.)
 
 ### Documentation
 - `theme`: corrected invalid `auto` value to `system` (README, Laravel example).

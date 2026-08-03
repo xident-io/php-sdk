@@ -62,7 +62,9 @@ if ($callbackToken) {
         if ($result->isVerified()) {
             $bracket = $result->ageBracket();
             $method  = $result->method();
-            $country = $result->countryCode;
+            // Country is only known when the document check ran (Path B/C) —
+            // null on a Path A (on-device) or Path D (token reuse) pass.
+            $country = $result->checks->document->country ?? 'n/a';
             echo "<h2 style='color:green'>Verified!</h2>";
             echo "<p>Age bracket: {$bracket}+, Method: {$method}, Country: {$country}</p>";
         } elseif ($result->isFailed()) {
