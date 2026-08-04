@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-04
+
+### Added
+- `SessionResult::$ipCountry` (`?string`) — the ISO 3166-1 alpha-2 country the
+  end user connected from, IP-derived. The v1 tenant result contract's first
+  additive field since the 2.0.0 freeze. Null on sessions created before
+  2026-08-04 or where IP geolocation failed. Distinct from
+  `$checks->document->country`, which is the document's issuing country.
+- `Config::SDK_VERSION` bumped to `2.1.0`.
+
 ## [2.0.0] - 2026-08-03
 
 ### Changed

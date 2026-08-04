@@ -37,6 +37,14 @@ final readonly class SessionResult
         public string $reason,
         /** How the session verified: e.g. "full" (document/ML) or "token" (Xident ID reuse). Null until known. */
         public ?string $verificationMode,
+        /**
+         * The ISO 3166-1 alpha-2 country the end user connected from,
+         * IP-derived. Null on sessions created before 2026-08-04, or where
+         * IP geolocation failed. Distinct from `$checks->document->country`,
+         * which is the document's issuing country — the two can
+         * legitimately differ.
+         */
+        public ?string $ipCountry,
         /** Your own user ID, echoed back if supplied at init. Null if you did not supply one. */
         public ?string $externalUserId,
         /** Per-step detail: liveness, age, document, face_match. */
@@ -120,6 +128,7 @@ final readonly class SessionResult
             verified: (bool)($data['verified'] ?? false),
             reason: (string)($data['reason'] ?? ''),
             verificationMode: isset($data['verification_mode']) ? (string)$data['verification_mode'] : null,
+            ipCountry: isset($data['ip_country']) ? (string)$data['ip_country'] : null,
             externalUserId: isset($data['external_user_id']) ? (string)$data['external_user_id'] : null,
             // A pre-v1 payload (or anything malformed) has no usable `checks`
             // object at all — ResultChecks::fromArray([]) degrades every

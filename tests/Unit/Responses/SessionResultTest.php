@@ -40,6 +40,7 @@ final class SessionResultTest extends TestCase
         $this->assertTrue($result->verified);
         $this->assertSame('', $result->reason);
         $this->assertSame('full', $result->verificationMode);
+        $this->assertSame('DE', $result->ipCountry);
         $this->assertSame('cust-4711', $result->externalUserId);
 
         $this->assertTrue($result->checks->liveness->performed);
