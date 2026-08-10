@@ -1,5 +1,17 @@
 name: Test
 
+# There is deliberately NO release.yml with a publish job here, and adding one
+# would be wrong.
+#
+# Composer has no registry upload step: Packagist watches this repository via
+# its GitHub hook and ingests tags on its own. Pushing the tag IS the publish.
+# Verified 2026-08-10 — repo.packagist.org already serves v2.1.0 back to v1.0.0
+# with nothing in CI ever having pushed them.
+#
+# That is also why the version guard lives in THIS workflow rather than a
+# release-only one: `push.tags` below is the last gate before Packagist picks
+# the tag up, and there is no later step to fail.
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
