@@ -1,0 +1,61 @@
+name: Release
+
+# Packagist CAN auto-update from a GitHub hook — but this repository has none.
+# `gh api repos/xident-io/php-sdk/hooks` returned an empty list on 2026-08-10,
+# which is exactly what Packagist's "Not Auto-Updated, Needs Attention" flag
+# reports. The versions already listed there arrived via manual updates or
+# Packagist's slow background crawl, NOT from tagging.
+#
+# So this workflow pushes instead of waiting to be pulled. A webhook is
+# invisible infrastructure that failed silently for months; a workflow step is
+# code under review, and it survives someone deleting the hook again.
+#
+# Fixing the hook as well is still worth doing (packagist.org profile -> sync
+# account, which reconfigures hooks) — it also updates dev-main on ordinary
+# branch pushes, which this tag-only workflow does not. The two are
+# complementary and the update call is idempotent, so running both is fine.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-packagist:
+    name: Notify Packagist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer
+
+      # Same guard test.yml runs on a tag push, repeated here so this workflow
+      # is self-contained — `needs:` cannot reach across workflow files.
+      #
+      # Worth being honest about what this does and does not buy: unlike npm or
+      # PyPI, where the upload IS the publish, Packagist will eventually crawl
+      # a public tag whether or not we tell it to. Skipping the notification on
+      # a bad tag delays exposure, it does not prevent it. The real remedy for a
+      # bad tag is to delete the tag.
+      - name: Config::SDK_VERSION must match ${{ github.ref_name }}
+        run: php scripts/check-version.php "${GITHUB_REF_NAME}"
+
+      # --fail-with-body so a 4xx/5xx fails the step AND shows Packagist's
+      # reason. Plain curl exits 0 on an HTTP error, which would turn a
+      # rejected update into a green run — the precise failure mode that let
+      # this repo go unnoticed in the first place.
+      - name: Trigger Packagist update
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          curl --fail-with-body -sS -XPOST \
+            -H 'content-type:application/json' \
+            "https://packagist.org/api/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
+            -d '{"repository":{"url":"https://github.com/xident-io/php-sdk"}}'

@@ -1,16 +1,14 @@
 name: Test
 
-# There is deliberately NO release.yml with a publish job here, and adding one
-# would be wrong.
+# The version guard below runs on `push.tags` because that is the last gate
+# before a tag becomes public. Composer has no upload step — Packagist ingests
+# tags from the repository — so once a tag exists it will be picked up, and the
+# only real remedy for a bad one is to delete the tag.
 #
-# Composer has no registry upload step: Packagist watches this repository via
-# its GitHub hook and ingests tags on its own. Pushing the tag IS the publish.
-# Verified 2026-08-10 — repo.packagist.org already serves v2.1.0 back to v1.0.0
-# with nothing in CI ever having pushed them.
-#
-# That is also why the version guard lives in THIS workflow rather than a
-# release-only one: `push.tags` below is the last gate before Packagist picks
-# the tag up, and there is no later step to fail.
+# An earlier version of this comment claimed Packagist auto-updates this repo
+# via a GitHub hook. It does not. `gh api repos/xident-io/php-sdk/hooks` returns
+# an empty list, which is why Packagist flags the package "Not Auto-Updated,
+# Needs Attention". release.yml now pushes the update explicitly.
 
 on:
   pull_request:
