@@ -39,7 +39,7 @@ final class SessionResultTest extends TestCase
         $this->assertSame(SessionStatus::Success, $result->status);
         $this->assertTrue($result->verified);
         $this->assertSame('', $result->reason);
-        $this->assertSame('full', $result->verificationMode);
+        $this->assertSame('full', $result->verificationType);
         $this->assertSame('DE', $result->ipCountry);
         $this->assertSame('cust-4711', $result->externalUserId);
 
@@ -70,7 +70,7 @@ final class SessionResultTest extends TestCase
         $this->assertSame(21, $result->ageBracket());
     }
 
-    public function testMethodReturnsVerificationMode(): void
+    public function testMethodReturnsVerificationType(): void
     {
         $result = SessionResult::fromArray($this->goldenFixture());
 
@@ -150,7 +150,7 @@ final class SessionResultTest extends TestCase
         $this->assertNull($result->ageBracket());
     }
 
-    public function testMethodNullWhenNoVerificationMode(): void
+    public function testMethodNullWhenNoVerificationType(): void
     {
         $result = SessionResult::fromArray(['token' => 'x', 'status' => 'pending']);
 

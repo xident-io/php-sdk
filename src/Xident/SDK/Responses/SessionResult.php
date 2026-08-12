@@ -40,7 +40,7 @@ final readonly class SessionResult
          * "age_check" (browser-only), "xident_id" (Xident-ID reuse) or
          * "eu_wallet". Treat the set as open. Null until known.
          */
-        public ?string $verificationMode,
+        public ?string $verificationType,
         /**
          * The ISO 3166-1 alpha-2 country the end user connected from,
          * IP-derived. Null on sessions created before 2026-08-04, or where
@@ -113,11 +113,11 @@ final readonly class SessionResult
     /**
      * Which PATH produced the verdict: "full" (document + face match),
      * "age_check" (browser-only), "xident_id" (Xident-ID reuse) or
-     * "eu_wallet". Treat the set as open. Alias of `$verificationMode`.
+     * "eu_wallet". Treat the set as open. Alias of `$verificationType`.
      */
     public function method(): ?string
     {
-        return $this->verificationMode;
+        return $this->verificationType;
     }
 
     /**
@@ -135,7 +135,7 @@ final readonly class SessionResult
             status: SessionStatus::normalize((string)($data['status'] ?? 'pending')) ?? SessionStatus::Pending,
             verified: (bool)($data['verified'] ?? false),
             reason: (string)($data['reason'] ?? ''),
-            verificationMode: isset($data['verification_mode']) ? (string)$data['verification_mode'] : null,
+            verificationType: isset($data['verification_type']) ? (string)$data['verification_type'] : null,
             ipCountry: isset($data['ip_country']) ? (string)$data['ip_country'] : null,
             externalUserId: isset($data['external_user_id']) ? (string)$data['external_user_id'] : null,
             // A pre-v1 payload (or anything malformed) has no usable `checks`
