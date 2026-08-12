@@ -35,7 +35,11 @@ final readonly class SessionResult
          * as open — new reasons may be added, so always handle a default.
          */
         public string $reason,
-        /** How the session verified: e.g. "full" (document/ML) or "token" (Xident ID reuse). Null until known. */
+        /**
+         * Which PATH produced the verdict: "full" (document + face match),
+         * "age_check" (browser-only), "xident_id" (Xident-ID reuse) or
+         * "eu_wallet". Treat the set as open. Null until known.
+         */
         public ?string $verificationMode,
         /**
          * The ISO 3166-1 alpha-2 country the end user connected from,
@@ -106,7 +110,11 @@ final readonly class SessionResult
         return $this->checks->age->passed ? $this->checks->age->gate : null;
     }
 
-    /** How the session verified: e.g. "full" or "token". Alias of `$verificationMode`. */
+    /**
+     * Which PATH produced the verdict: "full" (document + face match),
+     * "age_check" (browser-only), "xident_id" (Xident-ID reuse) or
+     * "eu_wallet". Treat the set as open. Alias of `$verificationMode`.
+     */
     public function method(): ?string
     {
         return $this->verificationMode;
