@@ -33,7 +33,7 @@ final readonly class Config
      * and an SDK patch release must never change which shape a customer receives.
      */
     public const PINNED_API_VERSION = '2026-08-13';
-    public const SDK_VERSION = '3.0.0';
+    public const SDK_VERSION = '3.1.0';
 
     public string $apiKey;
     public string $baseUrl;
