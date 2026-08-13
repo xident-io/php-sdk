@@ -53,6 +53,12 @@ final readonly class SessionResult
         public ?string $externalUserId,
         /** Per-step detail: liveness, age, document, face_match. */
         public ResultChecks $checks,
+        /**
+         * The session's risk assessment, or null when the session produced no
+         * risk signals. Sent by the API since 2026-08-06 and discarded by this
+         * SDK until 3.1.0 — see ResultChecks.
+         */
+        public ?Risk $risk,
         public string $createdAt,
         /** RFC 3339 timestamp the session reached a terminal state. Null while still in progress. */
         public ?string $completedAt,
@@ -143,6 +149,7 @@ final readonly class SessionResult
             // sub-check to performed:false rather than throwing, which is
             // what keeps an old deployment's response constructible.
             checks: ResultChecks::fromArray(is_array($data['checks'] ?? null) ? $data['checks'] : []),
+            risk: Risk::fromMixed($data['risk'] ?? null),
             createdAt: (string)($data['created_at'] ?? ''),
             completedAt: isset($data['completed_at']) ? (string)$data['completed_at'] : null,
             expiresAt: isset($data['expires_at']) ? (string)$data['expires_at'] : null,
