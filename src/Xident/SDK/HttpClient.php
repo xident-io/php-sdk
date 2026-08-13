@@ -107,6 +107,13 @@ final class HttpClient
     {
         $headers = [
             'X-API-Key: ' . $this->config->apiKey,
+            // isset(), not ?? — reading an UNINITIALISED typed property throws,
+            // and ?? does not rescue that; isset() returns false without throwing.
+            // A Config built without its constructor must still send a valid
+            // version rather than failing the request. See Config::$apiVersion.
+            'X-API-Version: ' . (isset($this->config->apiVersion)
+                ? $this->config->apiVersion
+                : Config::PINNED_API_VERSION),
             'User-Agent: ' . $this->config->userAgent(),
             'Accept: application/json',
         ];
