@@ -37,8 +37,6 @@ class VerificationController extends Controller
         $session = $this->xident->verification()->init([
             'callback_url' => route('verification.callback'),
             'min_age'      => 18,
-            'success_url'  => route('verification.success'),
-            'failed_url'   => route('verification.failed'),
             'user_id'      => (string) $request->user()?->id,
             'theme'        => 'system',
         ]);

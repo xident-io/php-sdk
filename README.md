@@ -81,12 +81,9 @@ $xident = new \Xident\SDK\Client(
 |-----------|------|----------|-------------|
 | `callback_url` | string | Yes | HTTPS URL for callback (localhost OK for dev) |
 | `min_age` | int | Yes* | 1–99. **Required** for age verification — omitting it (or `0`) returns HTTP 400. Optional (0–99) only when `purpose` is `id_verification`. |
-| `success_url` | string | No | Redirect on success |
-| `failed_url` | string | No | Redirect on failure |
 | `user_id` | string | No | Your internal user ID (echoed back on the callback) |
 | `theme` | string | No | `light`, `dark`, or `system`. Unknown values coerce to `system`. |
 | `locale` | string | No | `en`, `es`, `fr`, `de`, `pt`, `ar`, `zh`, `ja`, `hi`, `nl`. Unknown → `en`. |
-| `metadata` | string | No | Opaque string echoed back to you (e.g. a JSON blob or plan ID). Xident stores it verbatim and never parses it. |
 | `purpose` | string | No | `age_verification` (default) or `id_verification`. |
 
 Returns: `$result->token` (init token, `xit_` prefixed), `$result->verifyUrl`

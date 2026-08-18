@@ -31,8 +31,6 @@ class VerificationController extends AbstractController
         $session = $this->xident->verification()->init([
             'callback_url' => $this->generateUrl('verify_callback', [], 0),
             'min_age'      => 18,
-            'success_url'  => $this->generateUrl('verify_success', [], 0),
-            'failed_url'   => $this->generateUrl('verify_failed', [], 0),
         ]);
 
         // verifyUrl is always https://verify.xident.io — safe to redirect

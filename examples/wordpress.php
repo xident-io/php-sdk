@@ -41,8 +41,6 @@ add_action('wp_ajax_xident_start', function (): void {
         $session = $xident->verification()->init([
             'callback_url' => home_url('/xident-callback/'),
             'min_age'      => (int) get_option('xident_min_age', 18),
-            'success_url'  => home_url('/age-verified/'),
-            'failed_url'   => home_url('/verification-failed/'),
             'user_id'      => (string) get_current_user_id(),
         ]);
 
