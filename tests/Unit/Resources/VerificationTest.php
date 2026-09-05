@@ -84,6 +84,31 @@ final class VerificationTest extends TestCase
         $this->client($transport)->verification()->init([]);
     }
 
+    /**
+     * Data match (2026-09-05): `expected` goes on the wire as a nested object,
+     * `mismatch_policy` beside it. The array is passed through as given, so an
+     * integration that never heard of them sends exactly the body it sent before.
+     */
+    public function testInitSendsExpectedNested(): void
+    {
+        $transport = new MockTransport();
+        $transport->queueSuccess(['token' => 'xit_dm', 'verify_url' => 'https://v.io']);
+
+        $this->client($transport)->verification()->init([
+            'callback_url' => 'https://example.com/cb',
+            'purpose' => 'id_verification',
+            'expected' => ['first_name' => 'Ramin', 'date_of_birth' => '1985-01-01', 'nationality' => 'IR'],
+            'mismatch_policy' => 'review',
+        ]);
+
+        $body = json_decode($transport->getLastRequest()['body'], true);
+        $this->assertSame(
+            ['first_name' => 'Ramin', 'date_of_birth' => '1985-01-01', 'nationality' => 'IR'],
+            $body['expected']
+        );
+        $this->assertSame('review', $body['mismatch_policy']);
+    }
+
     public function testInitWithAllParams(): void
     {
         $transport = new MockTransport();
