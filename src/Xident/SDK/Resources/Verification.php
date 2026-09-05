@@ -40,6 +40,16 @@ final class Verification
      * - `verification_mode`: `auto` (default), `document` to force document +
      *   face match, or `facial` to force on-device age estimation. Composes
      *   with `min_age` rather than replacing it.
+     * - `expected`: identity data you already hold about the user, checked
+     *   against the document they present (data match, since 2026-09-05). Any
+     *   subset of `first_name`, `last_name`, `date_of_birth` (YYYY-MM-DD),
+     *   `document_number`, `nationality` (ISO alpha-2). Needs a document, so
+     *   pair it with `purpose: id_verification` or `verification_mode: document`.
+     *   The values never reach the browser; the result carries only verdicts,
+     *   per field, in `checks.data_match`.
+     * - `mismatch_policy`: `report` (default) reports mismatches in the result
+     *   with the outcome unchanged; `review` sends any mismatch to your review
+     *   queue with reason `data_mismatch`. Only meaningful with `expected`.
      *
      * @param array{
      *   callback_url: string,
@@ -52,6 +62,8 @@ final class Verification
      *   metadata?: string,
      *   purpose?: string,
      *   verification_mode?: string,
+     *   expected?: array{first_name?: string, last_name?: string, date_of_birth?: string, document_number?: string, nationality?: string},
+     *   mismatch_policy?: string,
      * } $params
      *
      * @throws \Xident\SDK\Exceptions\ValidationException If required params are missing
