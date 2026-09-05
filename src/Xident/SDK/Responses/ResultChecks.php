@@ -27,6 +27,13 @@ final readonly class ResultChecks
         public CheckResult $faceMatch,
         public CheckResult $euWallet,
         public CheckResult $aml,
+        /**
+         * Data match (sent since 2026-09-05): whether the identity data you
+         * supplied at init agrees with the document. Unlike the six checks
+         * above this one is OPTIONAL on the wire — null means not performed.
+         * See {@see DataMatchCheck}.
+         */
+        public ?DataMatchCheck $dataMatch = null,
     ) {}
 
     /**
@@ -41,6 +48,7 @@ final readonly class ResultChecks
             faceMatch: CheckResult::fromArray(self::subArray($data, 'face_match')),
             euWallet: CheckResult::fromArray(self::subArray($data, 'eu_wallet')),
             aml: CheckResult::fromArray(self::subArray($data, 'aml')),
+            dataMatch: DataMatchCheck::fromMixed($data['data_match'] ?? null),
         );
     }
 
