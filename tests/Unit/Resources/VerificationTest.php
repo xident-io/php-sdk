@@ -97,13 +97,13 @@ final class VerificationTest extends TestCase
         $this->client($transport)->verification()->init([
             'callback_url' => 'https://example.com/cb',
             'purpose' => 'id_verification',
-            'expected' => ['first_name' => 'Ramin', 'date_of_birth' => '1985-01-01', 'nationality' => 'IR'],
+            'expected' => ['first_name' => 'Jane', 'date_of_birth' => '1990-05-14', 'nationality' => 'GB'],
             'mismatch_policy' => 'review',
         ]);
 
         $body = json_decode($transport->getLastRequest()['body'], true);
         $this->assertSame(
-            ['first_name' => 'Ramin', 'date_of_birth' => '1985-01-01', 'nationality' => 'IR'],
+            ['first_name' => 'Jane', 'date_of_birth' => '1990-05-14', 'nationality' => 'GB'],
             $body['expected']
         );
         $this->assertSame('review', $body['mismatch_policy']);

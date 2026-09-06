@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-09-06
+
+### Added
+- Data match. `verification()->init()` accepts `expected` (any subset of
+  `first_name`, `last_name`, `date_of_birth`, `document_number`,
+  `nationality`) and `mismatch_policy` (`report` | `review`); the values are
+  checked against the presented document and never reach the browser.
+  `SessionResult::$checks->dataMatch` (`?DataMatchCheck`, added in 3.1.1's
+  result parsing) carries the per-field verdicts. Additive: nothing is sent
+  unless you pass the parameters, and the API version pin is unchanged.
+- `Config::SDK_VERSION` bumped to `3.2.0`.
+
 ## [2.1.0] - 2026-08-04
 
 ### Added

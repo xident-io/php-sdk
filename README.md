@@ -85,6 +85,8 @@ $xident = new \Xident\SDK\Client(
 | `theme` | string | No | `light`, `dark`, or `system`. Unknown values coerce to `system`. |
 | `locale` | string | No | `en`, `es`, `fr`, `de`, `pt`, `ar`, `zh`, `ja`, `hi`, `nl`. Unknown → `en`. |
 | `purpose` | string | No | `age_verification` (default) or `id_verification`. |
+| `expected` | array | No | Identity data you already hold about the user, checked against the document (data match). Any subset of `first_name`, `last_name`, `date_of_birth` (YYYY-MM-DD), `document_number`, `nationality` (ISO alpha-2). Needs a document: pair with `purpose: id_verification` or `verification_mode: document`. The values never reach the browser. |
+| `mismatch_policy` | string | No | `report` (default): mismatches are reported, the outcome is unchanged. `review`: any mismatch sends the session to your review queue with reason `data_mismatch`. Only with `expected`. |
 
 Returns: `$result->token` (init token, `xit_` prefixed), `$result->verifyUrl`
 
@@ -104,6 +106,7 @@ session:
 | `checks->age` | `AgeGateCheck` | `performed`, `passed`, `gate` (the age threshold) |
 | `checks->document` | `DocumentCheck` | `performed`, `passed`, `documentType`, `country` |
 | `checks->faceMatch` | `CheckResult` | `performed`, `passed` |
+| `checks->dataMatch` | `?DataMatchCheck` | `performed`, `passed`, `fields` — `null` unless you sent `expected` and a document was read. Each of `fields->firstName`, `lastName`, `dateOfBirth`, `documentNumber`, `nationality` is `match`, `mismatch`, `not_on_document` or `null`. Gate on `$checks->dataMatch?->passed === true`. |
 
 Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `ageBracket()` (⇒ `checks->age->gate` when `checks->age->passed`, else `null`), `method()` (⇒ `$result->verificationMode`)
 
