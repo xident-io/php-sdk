@@ -125,6 +125,31 @@ final readonly class SessionResult
     }
 
     /**
+     * Whether this result proves the person is at least $minAge: the
+     * session passed (`status` success and `verified` true), its age check
+     * passed, and the age gate it was checked against is $minAge or higher.
+     *
+     * Pass the age YOUR server requires, never an age from the browser or
+     * the callback URL. A result whose gate is lower (an 18+ result shown to
+     * a 21+ page) is refused. An `id_verification` result has no gate, so it
+     * never proves an age, even when the document showed a date of birth.
+     *
+     * This does not check who the result belongs to. Compare
+     * `$externalUserId` with the user id your server started the
+     * verification for as well.
+     */
+    public function provesAge(int $minAge): bool
+    {
+        $age = $this->checks->age;
+
+        return $this->isVerified()
+            && $this->verified
+            && $age->passed
+            && $age->gate > 0
+            && $age->gate >= $minAge;
+    }
+
+    /**
      * Which PATH produced the verdict: "full" (document + face match),
      * "age_check" (browser-only), "xident_id" (Xident-ID reuse) or
      * "eu_wallet". Treat the set as open. Alias of `$verificationType`.

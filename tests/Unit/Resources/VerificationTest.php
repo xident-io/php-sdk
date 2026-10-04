@@ -181,14 +181,28 @@ final class VerificationTest extends TestCase
      */
     private function sentBody(array $params): array
     {
+        return json_decode($this->sentBodyRaw($params), true);
+    }
+
+    /**
+     * Calls init() with $params, asserts exactly one POST to /verify/v1/init
+     * was sent, and returns the raw JSON body.
+     *
+     * @param array<string, mixed> $params
+     */
+    private function sentBodyRaw(array $params): string
+    {
         $transport = new MockTransport();
         $transport->queueSuccess(['token' => 'xit_ok', 'verify_url' => 'https://v.io?t=xit_ok']);
 
         $this->client($transport)->verification()->init($params);
 
         $this->assertSame(1, $transport->getRequestCount());
+        $request = $transport->getLastRequest();
+        $this->assertSame('POST', $request['method']);
+        $this->assertStringEndsWith('/verify/v1/init', $request['url']);
 
-        return json_decode($transport->getLastRequest()['body'], true);
+        return (string) $request['body'];
     }
 
     /** @return array<string, array{0: array<string, mixed>}> */
@@ -240,7 +254,11 @@ final class VerificationTest extends TestCase
             '99, the old maximum' => [99],
             'negative' => [-18],
             'a numeric string' => ['18'],
-            'a float' => [18.0],
+            'a fraction' => [18.5],
+            'a whole-number float out of range' => [26.0],
+            'not a number' => [NAN],
+            'infinity' => [INF],
+            'true' => [true],
         ];
     }
 
@@ -274,6 +292,43 @@ final class VerificationTest extends TestCase
         $body = $this->sentBody(['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => $minAge]);
 
         $this->assertSame($minAge, $body['min_age']);
+    }
+
+    /**
+     * json_encode writes 18.0 as 18, which the API accepts, so a whole-number
+     * float is accepted too and sent as the integer.
+     */
+    public function testInitSendsWholeNumberFloatMinAgeAsInteger(): void
+    {
+        $body = $this->sentBodyRaw(['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => 18.0]);
+
+        $this->assertMatchesRegularExpression('/"min_age":18[,}]/', $body);
+        $this->assertSame(18, json_decode($body, true)['min_age']);
+    }
+
+    public function testInitSendsIdVerificationWholeNumberFloatZeroAsInteger(): void
+    {
+        $body = $this->sentBodyRaw(
+            ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'purpose' => 'id_verification', 'min_age' => 0.0],
+        );
+
+        $this->assertMatchesRegularExpression('/"min_age":0[,}]/', $body);
+        $this->assertSame(0, json_decode($body, true)['min_age']);
+    }
+
+    /** An agent key is a server key: it builds the client and goes out as X-API-Key. */
+    public function testInitWithAgentKeySendsIt(): void
+    {
+        $transport = new MockTransport();
+        $transport->queueSuccess(['token' => 'xit_ak', 'verify_url' => 'https://verify.xident.io?t=xit_ak']);
+
+        (new Client('ak_live_agent1', transport: $transport))->verification()->init(
+            ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => 18],
+        );
+
+        $request = $transport->getLastRequest();
+        $this->assertStringEndsWith('/verify/v1/init', $request['url']);
+        $this->assertContains('X-API-Key: ak_live_agent1', $request['headers']);
     }
 
     public function testInitRefusesIdVerificationWithMinAge(): void
@@ -319,11 +374,17 @@ final class VerificationTest extends TestCase
     #[DataProvider('validIdVerificationProvider')]
     public function testInitAcceptsIdVerificationWithoutAgeOrFacial(array $extra): void
     {
-        $body = $this->sentBody(
-            ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'purpose' => 'id_verification'] + $extra,
-        );
+        $params = ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'purpose' => 'id_verification'] + $extra;
+        $body = $this->sentBody($params);
 
+        // The whole body survives as sent: the purpose, the user, the mode,
+        // and no age the API would refuse for an ID verification.
         $this->assertSame('id_verification', $body['purpose']);
+        $this->assertSame('usr_1', $body['user_id']);
+        $this->assertSame('https://example.com/cb', $body['callback_url']);
+        $this->assertSame($extra['verification_mode'] ?? null, $body['verification_mode'] ?? null);
+        $this->assertContains($body['min_age'] ?? null, [null, 0], 'an ID verification sends no age');
+        $this->assertSame(array_key_exists('min_age', $params), array_key_exists('min_age', $body));
     }
 
     /** facial stays allowed for an age verification. */
@@ -334,6 +395,24 @@ final class VerificationTest extends TestCase
         );
 
         $this->assertSame('facial', $body['verification_mode']);
+        $this->assertSame(21, $body['min_age']);
+        $this->assertSame('usr_1', $body['user_id']);
+    }
+
+    public function testInitSendsDocumentModeAndPurposeForAgeVerification(): void
+    {
+        $body = $this->sentBody([
+            'callback_url' => 'https://example.com/cb',
+            'user_id' => 'usr_1',
+            'min_age' => 19,
+            'purpose' => 'age_verification',
+            'verification_mode' => 'document',
+        ]);
+
+        $this->assertSame(
+            ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => 19, 'purpose' => 'age_verification', 'verification_mode' => 'document'],
+            $body,
+        );
     }
 
     // --- getResult() ---

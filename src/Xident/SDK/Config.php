@@ -76,12 +76,13 @@ final readonly class Config
 
         if (str_starts_with($apiKey, 'pk_')) {
             throw new \InvalidArgumentException(
-                'Public keys (pk_*) cannot be used with the server SDK. Use your secret key (sk_live_* or sk_test_*).'
+                'Public keys (pk_*) cannot be used with the server SDK. '
+                . 'Use a server key: your secret key (sk_live_* or sk_test_*) or an agent key (ak_live_* or ak_test_*).'
             );
         }
-        if (!str_starts_with($apiKey, 'sk_live_') && !str_starts_with($apiKey, 'sk_test_')) {
+        if (!self::isServerKey($apiKey)) {
             throw new \InvalidArgumentException(
-                'Invalid API key format. Must start with "sk_live_" or "sk_test_".'
+                'Invalid API key format. Must start with "sk_live_", "sk_test_", "ak_live_" or "ak_test_".'
             );
         }
 
@@ -93,6 +94,22 @@ final readonly class Config
         // An empty string falls back to the pinned default: the server rejects an
         // empty X-API-Version as invalid, so honouring '' would break every request.
         $this->apiVersion = $apiVersion !== '' ? $apiVersion : self::PINNED_API_VERSION;
+    }
+
+    /**
+     * Whether $apiKey is a server key: a secret key (`sk_live_`, `sk_test_`)
+     * or an agent key (`ak_live_`, `ak_test_`). The API accepts both on
+     * `POST /verify/v1/init` (an agent key needs the `verification:write`
+     * scope for it).
+     */
+    private static function isServerKey(string $apiKey): bool
+    {
+        foreach (['sk_live_', 'sk_test_', 'ak_live_', 'ak_test_'] as $prefix) {
+            if (str_starts_with($apiKey, $prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

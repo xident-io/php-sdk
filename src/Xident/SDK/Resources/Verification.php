@@ -84,12 +84,13 @@ final class Verification
      * before it sends anything, and throws the same error codes the API
      * answers with: `MISSING_USER_ID`, `INVALID_USER_ID`, `INVALID_MIN_AGE`,
      * `INVALID_VERIFICATION_MODE`. It sends `min_age` as given; the API is the
-     * one place that rounds it to the band.
+     * one place that rounds it to the band. A whole-number float such as
+     * `18.0` is accepted and sent as the integer `18`; `18.5` is refused.
      *
      * @param array{
      *   callback_url: string,
      *   user_id: string,
-     *   min_age?: int,
+     *   min_age?: int|float,
      *   success_url?: string,
      *   failed_url?: string,
      *   theme?: string,
@@ -109,7 +110,7 @@ final class Verification
      */
     public function init(array $params): InitResult
     {
-        self::validateInitParams($params);
+        $params = self::validateInitParams($params);
 
         $response = $this->http->post('/init', $params);
         return InitResult::fromArray($response->data ?? []);
@@ -122,11 +123,15 @@ final class Verification
      * refused. The checks run in the API's order: `user_id`, then `min_age`,
      * then the verification mode.
      *
+     * Returns the params to send: the same array, except that a whole-number
+     * float `min_age` (for example `18.0`) becomes the integer it stands for.
+     *
      * @param array<string, mixed> $params
+     * @return array<string, mixed>
      *
      * @throws ValidationException
      */
-    private static function validateInitParams(array $params): void
+    private static function validateInitParams(array $params): array
     {
         $userId = $params['user_id'] ?? null;
         if ($userId !== null && !is_string($userId)) {
@@ -136,23 +141,46 @@ final class Verification
             throw new ValidationException(self::MISSING_USER_ID_MESSAGE, 'MISSING_USER_ID');
         }
 
-        $minAge = $params['min_age'] ?? null;
+        $rawMinAge = $params['min_age'] ?? null;
+        $minAge = self::wholeNumber($rawMinAge);
+        if ($minAge !== null) {
+            $params['min_age'] = $minAge;
+        }
+
         if (($params['purpose'] ?? null) === self::PURPOSE_ID) {
-            if ($minAge !== null && $minAge !== 0) {
+            if ($rawMinAge !== null && $minAge !== 0) {
                 throw new ValidationException(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
             }
             if (($params['verification_mode'] ?? null) === 'facial') {
                 throw new ValidationException(self::FACIAL_WITH_ID_MESSAGE, 'INVALID_VERIFICATION_MODE');
             }
-            return;
+            return $params;
         }
 
         // Any other purpose is an age verification, the strict reading the
         // API uses too. A string such as "18" is refused: the API reads
         // min_age as a JSON number and would not accept it either.
-        if (!is_int($minAge) || $minAge < self::MIN_AGE_FLOOR || $minAge > self::MIN_AGE_CEILING) {
+        if ($minAge === null || $minAge < self::MIN_AGE_FLOOR || $minAge > self::MIN_AGE_CEILING) {
             throw new ValidationException(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
         }
+
+        return $params;
+    }
+
+    /**
+     * The integer a `min_age` value stands for, or null when it is not a
+     * whole number: an int as it is, a finite float with no fraction (18.0)
+     * as its int, anything else (18.5, "18", true, null) null.
+     */
+    private static function wholeNumber(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_float($value) && is_finite($value) && floor($value) === $value && abs($value) <= 1000.0) {
+            return (int) $value;
+        }
+        return null;
     }
 
     /**

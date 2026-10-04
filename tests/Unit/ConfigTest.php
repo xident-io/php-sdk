@@ -103,4 +103,18 @@ final class ConfigTest extends TestCase
         $config = new Config(apiKey: 'sk_test_abc123');
         $this->assertSame('sk_test_abc123', $config->apiKey);
     }
+
+    /** The API accepts agent keys on /init, so the SDK must not refuse them. */
+    public function testAcceptsAgentKeys(): void
+    {
+        $this->assertSame('ak_live_abc123', (new Config(apiKey: 'ak_live_abc123'))->apiKey);
+        $this->assertSame('ak_test_abc123', (new Config(apiKey: 'ak_test_abc123'))->apiKey);
+    }
+
+    public function testRejectsLookalikeAgentPrefix(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('"ak_live_" or "ak_test_"');
+        new Config(apiKey: 'ak_prod_abc123');
+    }
 }

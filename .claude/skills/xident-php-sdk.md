@@ -45,11 +45,14 @@ $token = $_GET['token']; // or $request->input('token') in Laravel
 
 $result = $xident->verification()->getResult($token);
 
-if ($result->isVerified()) {
+// Grant only when the result belongs to the user your server started it for
+// (never the user_id in the URL) AND proves the age your site requires
+// (an 18+ result does not open a 21+ page; an ID-only result proves no age).
+if ($result->externalUserId === $userId && $result->provesAge(18)) {
     $ageBracket = $result->ageBracket(); // 18
-    $method = $result->method();          // "ml_fast"
+    $method = $result->method();          // "full", "age_check", "xident_id" or "eu_wallet"
     // Grant access
-} elseif ($result->isFailed()) {
+} else {
     // Deny access
 }
 ```
@@ -87,6 +90,6 @@ try {
 ## Key Rules
 
 1. NEVER trust URL parameters — always call `getResult()` server-side
-2. Use `sk_*` secret key server-side only, never in frontend
+2. Use a server key (`sk_*` secret key or `ak_*` agent key) server-side only, never in frontend
 3. Always verify webhook signatures before processing events
 4. The SDK auto-retries on 5xx errors (3 times, exponential backoff)

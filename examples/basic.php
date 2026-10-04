@@ -49,6 +49,17 @@ if (!$secretKey) {
 
 $xident = new Client(apiKey: $secretKey);
 
+// The minimum age this site requires. Decided here, on the server: never take
+// it from the request, or the browser could ask for a lower age.
+const REQUIRED_MIN_AGE = 18; // 12 to 25, rounded up to 12, 15, 18, 21 or 25
+
+// The id of the person being verified, as your app knows them. In your app
+// this is the signed-in user's id. This demo has no login, so it keeps a
+// random id in the PHP session.
+session_start();
+$_SESSION['xident_user_id'] ??= 'php_demo_' . bin2hex(random_bytes(8));
+$userId = $_SESSION['xident_user_id'];
+
 // ─────────────────────────────────────────────────
 // Handle callback — check if user returned from verification
 // ─────────────────────────────────────────────────
@@ -60,7 +71,16 @@ if ($callbackToken) {
     try {
         $result = $xident->verification()->getResult($callbackToken);
 
-        if ($result->isVerified()) {
+        // Grant only when both hold:
+        // 1. The result belongs to this visitor. Compare with the id this
+        //    server sent as user_id, never with the user_id in the URL: a
+        //    result token copied from someone else's callback is a real
+        //    success, for somebody else.
+        // 2. It proves the age this site requires. An 18+ result does not
+        //    open a 21+ page, and an ID-only result proves no age.
+        if ($result->externalUserId !== $userId) {
+            echo "<h2 style='color:red'>This result belongs to someone else</h2>";
+        } elseif ($result->provesAge(REQUIRED_MIN_AGE)) {
             $bracket = $result->ageBracket();
             $method  = $result->method();
             // Country is only known when the document check ran (Path B/C) —
@@ -68,6 +88,8 @@ if ($callbackToken) {
             $country = $result->checks->document->country ?? 'n/a';
             echo "<h2 style='color:green'>Verified!</h2>";
             echo "<p>Age bracket: {$bracket}+, Method: {$method}, Country: {$country}</p>";
+        } elseif ($result->isVerified()) {
+            echo "<h2 style='color:red'>Verified, but not for the age this site requires</h2>";
         } elseif ($result->isFailed()) {
             echo "<h2 style='color:red'>Verification failed</h2>";
         } elseif ($result->isPending()) {
@@ -88,8 +110,8 @@ $callbackUrl = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost:8888') . '/basic
 try {
     $session = $xident->verification()->init([
         'callback_url' => $callbackUrl,
-        'user_id'      => 'php_demo_user', // required: your own identifier for this person
-        'min_age'      => 18,              // 12 to 25, rounded up to 12, 15, 18, 21 or 25
+        'user_id'      => $userId,           // required: your own identifier for this person
+        'min_age'      => REQUIRED_MIN_AGE,
     ]);
 
     // Show link to verification widget

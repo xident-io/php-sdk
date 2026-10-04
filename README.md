@@ -35,20 +35,34 @@ use Xident\SDK\Client;
 $xident = new Client(apiKey: $_ENV['XIDENT_SECRET_KEY']);
 
 // 1. Create init token (your backend, with your secret key)
+const REQUIRED_MIN_AGE = 18; // your site's rule, decided on the server (12 to 25)
+
 $session = $xident->verification()->init([
     'callback_url' => 'https://yoursite.com/verify-callback',
-    'user_id'      => 'user_12345', // required: your own id for this person
-    'min_age'      => 18,           // 12 to 25, rounded up to 12, 15, 18, 21 or 25
+    'user_id'      => $currentUserId,    // required: your own id for this person
+    'min_age'      => REQUIRED_MIN_AGE,  // 12 to 25, rounded up to 12, 15, 18, 21 or 25
 ]);
 // Redirect user to $session->verifyUrl
 
 // 2. After user returns, verify server-side (NEVER trust URL params)
 $result = $xident->verification()->getResult($token);
 
-if ($result->isVerified()) {
+// Grant only when the result belongs to this user AND proves your age.
+if ($result->externalUserId === $currentUserId && $result->provesAge(REQUIRED_MIN_AGE)) {
     echo $result->ageBracket(); // 18
 }
 ```
+
+Two checks on top of "verified", both on your server:
+
+- **Whose result is it?** Compare `$result->externalUserId` with the user id
+  your server sent to `init`, never with the `user_id` in the callback URL. A
+  result token copied from someone else's callback is a real success, for
+  somebody else.
+- **Which age does it prove?** `provesAge($minAge)` is true only when the
+  session passed and its age gate is `$minAge` or higher. An 18+ result does
+  not open a 21+ page, and an `id_verification` result (no gate) proves no age.
+  Pass the age your server requires, never one from the request.
 
 ## How It Works
 
@@ -69,7 +83,7 @@ if ($result->isVerified()) {
 
 ```php
 $xident = new \Xident\SDK\Client(
-    apiKey:     'sk_live_xxx',            // Required
+    apiKey:     'sk_live_xxx',            // Required: sk_live_, sk_test_, ak_live_ or ak_test_
     baseUrl:    'https://api.xident.io',  // Optional (default)
     timeout:    30,                        // Optional seconds
     maxRetries: 3,                         // Optional (retries on 5xx)
@@ -94,13 +108,14 @@ $xident = new \Xident\SDK\Client(
 Returns: `$result->token` (init token, `xit_` prefixed), `$result->verifyUrl`
 
 `init` needs a server key (`sk_live_`, `sk_test_`, `ak_live_` or `ak_test_`). A
-public key (`pk_`) gets 403 `SECRET_KEY_REQUIRED`. Never put a server key in a
-browser or a mobile app.
+public key (`pk_`) gets 403 `SECRET_KEY_REQUIRED`; the client refuses one when
+it is built. Never put a server key in a browser or a mobile app.
 
 Before it sends anything, the SDK checks `user_id`, `min_age` and the
 `id_verification` rules, and throws a `ValidationException` with the same code
 the API would answer with. A local refusal has HTTP status 0 and no request ID,
 because no request was sent. The SDK sends `min_age` as given; the API rounds it.
+A whole-number float such as `18.0` is sent as the integer `18`; `18.5` is refused.
 
 | Code | When |
 |------|------|
@@ -119,7 +134,7 @@ in `+fail`.
 
 Pass the **result** token (`xtk_`) from the callback — not the `xit_` init token.
 
-Properties: `$result->token` (the `xtk_` result token), `$result->status`, `$result->verified`, `$result->reason`, `$result->verificationMode`, `$result->externalUserId`, `$result->checks`, `$result->createdAt`, `$result->completedAt`, `$result->expiresAt`.
+Properties: `$result->token` (the `xtk_` result token), `$result->status`, `$result->verified`, `$result->reason`, `$result->verificationType`, `$result->externalUserId`, `$result->checks`, `$result->createdAt`, `$result->completedAt`, `$result->expiresAt`.
 
 `$result->checks` is a `ResultChecks` object with one entry per verification
 step — always present, `performed: false` when a step didn't run for this
@@ -133,7 +148,7 @@ session:
 | `checks->faceMatch` | `CheckResult` | `performed`, `passed` |
 | `checks->dataMatch` | `?DataMatchCheck` | `performed`, `passed`, `fields` — `null` unless you sent `expected` and a document was read. Each of `fields->firstName`, `lastName`, `dateOfBirth`, `documentNumber`, `nationality` is `match`, `mismatch`, `not_on_document` or `null`. Gate on `$checks->dataMatch?->passed === true`. |
 
-Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `ageBracket()` (⇒ `checks->age->gate` when `checks->age->passed` and the session had an age threshold, else `null`), `method()` (⇒ `$result->verificationMode`)
+Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `provesAge(int $minAge)` (⇒ the session passed and `checks->age` passed with a gate of `$minAge` or higher; false for an `id_verification` result, which has no gate), `ageBracket()` (⇒ `checks->age->gate` when `checks->age->passed` and the session had an age threshold, else `null`), `method()` (⇒ `$result->verificationType`)
 
 ### webhooks()->constructEvent(payload, signature, secret): array
 
@@ -179,12 +194,14 @@ Automatic retry with exponential backoff (1s, 2s, 4s) on 5xx and network errors 
 ```php
 class VerificationController extends Controller
 {
+    private const REQUIRED_MIN_AGE = 18; // decided on the server, never from the request
+
     public function start(Request $request)
     {
         $xident = new \Xident\SDK\Client(apiKey: config('services.xident.secret_key'));
         $session = $xident->verification()->init([
             'callback_url' => route('verify.callback'),
-            'min_age' => 18,
+            'min_age' => self::REQUIRED_MIN_AGE,
             'user_id' => (string) $request->user()->id,
         ]);
         return redirect($session->verifyUrl);
@@ -194,7 +211,9 @@ class VerificationController extends Controller
     {
         $xident = new \Xident\SDK\Client(apiKey: config('services.xident.secret_key'));
         $result = $xident->verification()->getResult($request->input('token'));
-        if ($result->isVerified()) {
+        if ($result->externalUserId === (string) $request->user()->id
+            && $result->provesAge(self::REQUIRED_MIN_AGE)
+        ) {
             $request->user()->update(['age_verified' => true]);
             return redirect()->route('dashboard');
         }
@@ -207,7 +226,7 @@ See `examples/` for Symfony, WordPress, and webhook examples.
 
 ## Security
 
-- **Secret key**: Never expose `sk_*` in frontend code
+- **Server keys**: Never expose `sk_*` or `ak_*` in frontend code
 - **TLS 1.2+**: Enforced on all API calls
 - **Webhooks**: Always verify signatures (`hash_equals` for timing-attack resistance)
 - **Verification tokens**: Always re-verify server-side. Never trust URL params alone.

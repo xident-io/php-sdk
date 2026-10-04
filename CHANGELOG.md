@@ -16,9 +16,11 @@ Plan: `plans/requirements-check-trusted-params.md` version 4 in xident-io/projec
   and sends nothing. A non-string `user_id` gets `INVALID_USER_ID`. From this
   release the API refuses a missing `user_id` too.
 - `min_age` for `age_verification` must be a whole number from 12 to 25
-  (`INVALID_MIN_AGE` otherwise, including a numeric string). The API rounds
-  it up to the next of 12, 15, 18, 21 or 25 and enforces that band, so 19 is
-  enforced as 21. The SDK sends the value as given. The old range was 1 to 99.
+  (`INVALID_MIN_AGE` otherwise, including a numeric string or a fraction such
+  as 18.5). A whole-number float such as `18.0` is accepted and sent as the
+  integer 18. The API rounds it up to the next of 12, 15, 18, 21 or 25 and
+  enforces that band, so 19 is enforced as 21. The SDK sends the value as
+  given. The old range was 1 to 99.
 - `id_verification` takes no `min_age` (absent, `null` or 0; anything else is
   `INVALID_MIN_AGE`) and cannot use `verification_mode: facial`
   (`INVALID_VERIFICATION_MODE`). An ID verification now always requires
@@ -30,7 +32,21 @@ Plan: `plans/requirements-check-trusted-params.md` version 4 in xident-io/projec
   API no longer reports a false 18 for it), which parses as `gate` 0; the
   bracket used to come back as that 0 whenever the age check passed.
 
+### Added
+- The client accepts agent keys (`ak_live_`, `ak_test_`) as well as secret
+  keys. The API accepts both on `POST /verify/v1/init`.
+- `SessionResult::provesAge(int $minAge)`: true only when the session passed,
+  its age check passed, and its age gate is `$minAge` or higher. An
+  `id_verification` result has no gate and proves no age.
+
 ### Documentation
+- Every callback example (README, Laravel, Symfony, WordPress, `basic.php`,
+  `webhook.php`) now grants access only when the result's `externalUserId` is
+  the user the server started the verification for, and `provesAge()` holds
+  for the age the server requires. Before, they trusted any successful result
+  token, so a token from another user's callback, an 18+ result on a 21+
+  page, or an ID-only result was accepted. The required age is a constant or
+  an option on the server, never a request value.
 - `init` needs a server key (`sk_live_`, `sk_test_`, `ak_live_`, `ak_test_`);
   a public key gets 403 `SECRET_KEY_REQUIRED`. The README lists the new error
   codes, `verification_mode` and `liveness_difficulty`.
