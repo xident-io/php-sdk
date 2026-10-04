@@ -113,16 +113,20 @@ Returns: `$result->token` (init token, `xit_` prefixed), `$result->verifyUrl`
 public key (`pk_`) gets 403 `SECRET_KEY_REQUIRED`; the client refuses one when
 it is built. Never put a server key in a browser or a mobile app.
 
-Before it sends anything, the SDK checks `user_id`, `min_age` and the
-`id_verification` rules, and throws a `ValidationException` with the same code
-the API would answer with. A local refusal has HTTP status 0 and no request ID,
-because no request was sent. The SDK sends `min_age` as given; the API rounds it.
+Before it sends anything, the SDK checks `callback_url`, `user_id`, `purpose`,
+`min_age` and the `id_verification` rules, in the API's order, and throws a
+`ValidationException` with the same code the API would answer with. A local
+refusal has HTTP status 400, the status the API answers the same request with,
+and no request ID, because no request was sent. The SDK sends `min_age` as given; the API rounds it.
 A whole-number float such as `18.0` is sent as the integer `18`; `18.5` is refused.
 
 | Code | When |
 |------|------|
+| `INVALID_REQUEST` (400) | `callback_url`, `user_id` or `purpose` is not a string (the API's JSON decoder refuses the body). |
+| `MISSING_CALLBACK_URL` (400) | `callback_url` is missing or empty. |
 | `MISSING_USER_ID` (400) | `user_id` is missing or blank. |
-| `INVALID_USER_ID` (400) | `user_id` is not a string, or (API only) it is a Xident key or token. |
+| `INVALID_USER_ID` (400, API only) | `user_id` starts like a Xident key or token. |
+| `INVALID_PURPOSE` (400) | `purpose` is not `age_verification` or `id_verification`. Checked before `min_age`. |
 | `INVALID_MIN_AGE` (400) | `min_age` is missing or outside 12 to 25 for `age_verification`, or is set (not 0) for `id_verification`. |
 | `INVALID_VERIFICATION_MODE` (400) | `verification_mode` is `facial` with purpose `id_verification`. The API also refuses a mode other than `auto`, `document` or `facial`. |
 | `INVALID_LIVENESS_DIFFICULTY` (400, API only) | `liveness_difficulty` is not `easy`, `medium` or `hard`. |
@@ -130,7 +134,10 @@ A whole-number float such as `18.0` is sent as the integer `18`; `18.5` is refus
 | `IDEMPOTENCY_KEY_MISMATCH` (422, API only) | An `Idempotency-Key` was reused with a different body. |
 
 To get a failed session in test mode, use a test key and a `user_id` that ends
-in `+fail`.
+in `+fail`. A test key settles every session at once, with no real check, and
+the result says `test: true` (`$result->test`). `provesAge()` refuses it unless
+you pass `allowTest: true`, which only code that runs with a test key during
+development may do; production code never does.
 
 ### verification()->getResult(token): SessionResult
 
@@ -237,7 +244,7 @@ See `examples/` for Symfony, WordPress, and webhook examples.
 ## Testing
 
 ```bash
-composer test              # 228 tests, 711 assertions
+composer test              # 266 tests, 1038 assertions
 composer test:coverage     # With HTML coverage report
 ```
 

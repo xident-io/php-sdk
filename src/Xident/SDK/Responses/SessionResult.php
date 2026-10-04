@@ -63,6 +63,14 @@ final readonly class SessionResult
         /** RFC 3339 timestamp the session reached a terminal state. Null while still in progress. */
         public ?string $completedAt,
         public ?string $expiresAt,
+        /**
+         * True when the verdict came from a test-mode session (a test key):
+         * it settled at once, with no real liveness, age or document check,
+         * and proves nothing about a person. The API sends `test: true` only
+         * then and omits it on live sessions. {@see self::provesAge()}
+         * refuses such a result unless you opt in.
+         */
+        public bool $test = false,
     ) {}
 
     /**
@@ -114,7 +122,8 @@ final readonly class SessionResult
      * The gate when the age check passed, or when the session passed with a
      * gate: a returning user who reused their Xident ID (`verification_type`
      * `xident_id`) proves the gate without a new age check in this session,
-     * so `checks.age.passed` is false there.
+     * so `checks.age.passed` is false there. Null for a test-key result
+     * (`$test`), which proves nothing.
      *
      * An `id_verification` session has no age threshold: its result carries
      * no `checks.age.gate`, which parses as `gate` 0. Its age check can still
@@ -124,7 +133,7 @@ final readonly class SessionResult
     public function ageBracket(): ?int
     {
         $age = $this->checks->age;
-        if ($age->gate <= 0) {
+        if ($age->gate <= 0 || $this->test) {
             return null;
         }
 
@@ -148,16 +157,21 @@ final readonly class SessionResult
      * a 21+ page) is refused. An `id_verification` result has no gate, so it
      * never proves an age, even when the document showed a date of birth.
      *
+     * False for a test-key result (`$test`): it settled without any real
+     * check. Pass `$allowTest: true` only in code that runs with a test key
+     * during development, never in production code.
+     *
      * This does not check who the result belongs to. Compare
      * `$externalUserId` with the user id your server started the
      * verification for as well.
      */
-    public function provesAge(int $minAge): bool
+    public function provesAge(int $minAge, bool $allowTest = false): bool
     {
         $age = $this->checks->age;
 
         return $this->isVerified()
             && $this->verified
+            && (!$this->test || $allowTest)
             && $age->gate > 0
             && $age->gate >= $minAge;
     }
@@ -199,6 +213,7 @@ final readonly class SessionResult
             createdAt: (string)($data['created_at'] ?? ''),
             completedAt: isset($data['completed_at']) ? (string)$data['completed_at'] : null,
             expiresAt: isset($data['expires_at']) ? (string)$data['expires_at'] : null,
+            test: ($data['test'] ?? false) === true,
         );
     }
 }

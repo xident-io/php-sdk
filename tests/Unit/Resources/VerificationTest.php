@@ -82,14 +82,19 @@ final class VerificationTest extends TestCase
     public function testInitValidationError(): void
     {
         $transport = new MockTransport();
-        $transport->queueError(400, 'MISSING_CALLBACK_URL', 'callback_url is required');
+        $transport->queueError(400, 'INVALID_CALLBACK_URL', 'callback_url must be a valid HTTPS URL (or localhost for dev)');
 
-        // Valid locally, so the request is sent and the API's 400 comes back.
+        // Valid locally (the SDK does not check the URL's form), so the
+        // request is sent and the API's 400 comes back.
         try {
-            $this->client($transport)->verification()->init(['user_id' => 'usr_1', 'min_age' => 18]);
+            $this->client($transport)->verification()->init([
+                'callback_url' => 'yourapp://verified',
+                'user_id' => 'usr_1',
+                'min_age' => 18,
+            ]);
             $this->fail('expected a ValidationException');
         } catch (ValidationException $e) {
-            $this->assertSame('MISSING_CALLBACK_URL', $e->getErrorCode());
+            $this->assertSame('INVALID_CALLBACK_URL', $e->getErrorCode());
             $this->assertSame(400, $e->getHttpStatus());
             $this->assertSame(1, $transport->getRequestCount());
         }
@@ -164,8 +169,8 @@ final class VerificationTest extends TestCase
             $this->fail("expected a ValidationException with code {$code}");
         } catch (ValidationException $e) {
             $this->assertSame($code, $e->getErrorCode());
-            // A local refusal: no HTTP answer, no request ID.
-            $this->assertSame(0, $e->getHttpStatus());
+            // A local refusal: the status the API answers with, no request ID.
+            $this->assertSame(400, $e->getHttpStatus());
             $this->assertNull($e->getRequestId());
         }
 
@@ -228,11 +233,69 @@ final class VerificationTest extends TestCase
         );
     }
 
-    public function testInitRefusesNonStringUserId(): void
+    /**
+     * A user_id of the wrong JSON type never reaches the API's own rules: its
+     * decoder refuses the whole body with INVALID_REQUEST. The same for
+     * callback_url and purpose.
+     */
+    public function testInitRefusesNonStringValuesWithInvalidRequest(): void
+    {
+        foreach ([42, true, ['id' => 1]] as $wrong) {
+            $this->assertRefusedLocally(
+                ['callback_url' => 'https://example.com/cb', 'min_age' => 18, 'user_id' => $wrong],
+                'INVALID_REQUEST',
+            );
+        }
+        $this->assertRefusedLocally(['callback_url' => 7, 'min_age' => 18, 'user_id' => 'usr_1'], 'INVALID_REQUEST');
+        $this->assertRefusedLocally(
+            ['callback_url' => 'https://example.com/cb', 'min_age' => 18, 'user_id' => 'usr_1', 'purpose' => 1],
+            'INVALID_REQUEST',
+        );
+    }
+
+    public function testInitRefusesMissingCallbackUrlFirst(): void
+    {
+        $this->assertRefusedLocally(['user_id' => 'usr_1', 'min_age' => 18], 'MISSING_CALLBACK_URL');
+        $this->assertRefusedLocally(['callback_url' => '', 'user_id' => 'usr_1', 'min_age' => 18], 'MISSING_CALLBACK_URL');
+        // Nothing else is set either: the API checks callback_url before user_id.
+        $this->assertRefusedLocally([], 'MISSING_CALLBACK_URL');
+    }
+
+    public function testInitRefusesUnknownPurposeBeforeMinAge(): void
     {
         $this->assertRefusedLocally(
-            ['callback_url' => 'https://example.com/cb', 'min_age' => 18, 'user_id' => 42],
-            'INVALID_USER_ID',
+            ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => 18, 'purpose' => 'kyc'],
+            'INVALID_PURPOSE',
+        );
+        // An out-of-range age as well: purpose is checked first, as at the API.
+        $this->assertRefusedLocally(
+            ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => 99, 'purpose' => 'AGE_VERIFICATION'],
+            'INVALID_PURPOSE',
+        );
+        // user_id is checked before purpose.
+        $this->assertRefusedLocally(
+            ['callback_url' => 'https://example.com/cb', 'min_age' => 18, 'purpose' => 'kyc'],
+            'MISSING_USER_ID',
+        );
+
+        try {
+            $this->client(new MockTransport())->verification()->init(
+                ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => 18, 'purpose' => 'kyc'],
+            );
+            $this->fail('expected a ValidationException');
+        } catch (ValidationException $e) {
+            $this->assertSame("purpose must be 'age_verification' or 'id_verification'", $e->getMessage());
+        }
+    }
+
+    public function testInitReadsAnEmptyPurposeAsAnAgeVerification(): void
+    {
+        $body = $this->sentBody(['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'min_age' => 18, 'purpose' => '']);
+        $this->assertSame('', $body['purpose']);
+
+        $this->assertRefusedLocally(
+            ['callback_url' => 'https://example.com/cb', 'user_id' => 'usr_1', 'purpose' => ''],
+            'INVALID_MIN_AGE',
         );
     }
 

@@ -13,8 +13,14 @@ Plan: `plans/requirements-check-trusted-params.md` version 4 in xident-io/projec
 ### Changed
 - `verification()->init()` requires `user_id`. Without it, or with a blank
   value, the SDK throws a `ValidationException` with code `MISSING_USER_ID`
-  and sends nothing. A non-string `user_id` gets `INVALID_USER_ID`. From this
-  release the API refuses a missing `user_id` too.
+  and sends nothing. From this release the API refuses a missing `user_id`
+  too.
+- `init()` checks the parameters in the API's order (`callback_url`,
+  `user_id`, `purpose`, `min_age`, `verification_mode`) with the API's codes:
+  a `callback_url`, `user_id` or `purpose` that is not a string gets
+  `INVALID_REQUEST`, as the API's JSON decoder answers; a missing
+  `callback_url` gets `MISSING_CALLBACK_URL`; an unknown `purpose` gets
+  `INVALID_PURPOSE`, before `min_age` is looked at.
 - `min_age` for `age_verification` must be a whole number from 12 to 25
   (`INVALID_MIN_AGE` otherwise, including a numeric string or a fraction such
   as 18.5). A whole-number float such as `18.0` is accepted and sent as the
@@ -25,8 +31,8 @@ Plan: `plans/requirements-check-trusted-params.md` version 4 in xident-io/projec
   `INVALID_MIN_AGE`) and cannot use `verification_mode: facial`
   (`INVALID_VERIFICATION_MODE`). An ID verification now always requires
   liveness, a document and a face match.
-- The local checks throw with the API's own codes and messages, HTTP status 0
-  and no request ID.
+- The local checks throw with the API's own codes and messages, HTTP status
+  400 (the status the API answers with) and no request ID.
 - `SessionResult::ageBracket()` returns `null` when the session had no age
   threshold. An `id_verification` result carries no `checks.age.gate` (the
   API no longer reports a false 18 for it), which parses as `gate` 0; the
@@ -40,7 +46,10 @@ Plan: `plans/requirements-check-trusted-params.md` version 4 in xident-io/projec
 - `SessionResult::provesAge(int $minAge)`: true only when the session passed
   and its age gate (`checks.age.gate`) is `$minAge` or higher. It does not
   need `checks.age.passed`, which is false for a passed Xident ID reuse. An
-  `id_verification` result has no gate and proves no age.
+  `id_verification` result has no gate and proves no age. A test-key result
+  (`test: true`) is refused unless the caller passes `allowTest: true`.
+- `SessionResult::$test`: true for a test-key result, which settled with no
+  real check and proves nothing. `ageBracket()` is `null` for it.
 
 ### Documentation
 - Every callback example (README, Laravel, Symfony, WordPress, `basic.php`,

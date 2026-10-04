@@ -53,6 +53,13 @@ $xident = new Client(apiKey: $secretKey);
 // it from the request, or the browser could ask for a lower age.
 const REQUIRED_MIN_AGE = 18; // 12 to 25, rounded up to 12, 15, 18, 21 or 25
 
+// This example runs with a TEST key. A test key settles every session at
+// once, with no real check, and the result says `test: true`; provesAge()
+// refuses it unless you opt in. Opt in only for local development with a
+// test key, and only on purpose: XIDENT_ALLOW_TEST_RESULTS=1. Production code
+// never passes allowTest.
+define('ALLOW_TEST_RESULTS', getenv('XIDENT_ALLOW_TEST_RESULTS') === '1');
+
 // The id of the person being verified, as your app knows them. In your app
 // this is the signed-in user's id. This demo has no login, so it keeps a
 // random id in the PHP session.
@@ -80,7 +87,7 @@ if ($callbackToken) {
         //    open a 21+ page, and an ID-only result proves no age.
         if ($result->externalUserId !== $userId) {
             echo "<h2 style='color:red'>This result belongs to someone else</h2>";
-        } elseif ($result->provesAge(REQUIRED_MIN_AGE)) {
+        } elseif ($result->provesAge(REQUIRED_MIN_AGE, allowTest: ALLOW_TEST_RESULTS)) {
             $bracket = $result->ageBracket();
             $method  = $result->method();
             // Country is only known when the document check ran (Path B/C) —

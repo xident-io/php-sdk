@@ -20,6 +20,17 @@ final class Verification
 
     private const PURPOSE_ID = 'id_verification';
 
+    private const PURPOSE_AGE = 'age_verification';
+
+    /** A local refusal has the status the API answers the same request with. */
+    private const HTTP_BAD_REQUEST = 400;
+
+    private const INVALID_REQUEST_MESSAGE = 'invalid request body';
+
+    private const MISSING_CALLBACK_URL_MESSAGE = 'callback_url is required';
+
+    private const INVALID_PURPOSE_MESSAGE = "purpose must be 'age_verification' or 'id_verification'";
+
     private const MISSING_USER_ID_MESSAGE =
         'user_id is required: pass your own identifier for the person being verified';
 
@@ -80,10 +91,12 @@ final class Verification
      *   with the outcome unchanged; `review` sends any mismatch to your review
      *   queue with reason `data_mismatch`. Only meaningful with `expected`.
      *
-     * The SDK checks `user_id`, `min_age` and the `id_verification` rules
-     * before it sends anything, and throws the same error codes the API
-     * answers with: `MISSING_USER_ID`, `INVALID_USER_ID`, `INVALID_MIN_AGE`,
-     * `INVALID_VERIFICATION_MODE`. It sends `min_age` as given; the API is the
+     * The SDK checks `callback_url`, `user_id`, `purpose`, `min_age` and the
+     * `id_verification` rules before it sends anything, in the API's order,
+     * and throws the same error codes the API answers with:
+     * `INVALID_REQUEST` (`callback_url`, `user_id` or `purpose` is not a
+     * string), `MISSING_CALLBACK_URL`, `MISSING_USER_ID`, `INVALID_PURPOSE`,
+     * `INVALID_MIN_AGE`, `INVALID_VERIFICATION_MODE`. It sends `min_age` as given; the API is the
      * one place that rounds it to the band. A whole-number float such as
      * `18.0` is accepted and sent as the integer `18`; `18.5` is refused.
      *
@@ -104,8 +117,9 @@ final class Verification
      * } $params
      *
      * @throws \Xident\SDK\Exceptions\ValidationException If a parameter is
-     *         missing or invalid. The local checks throw it with HTTP status 0
-     *         and no request ID, because no request was sent.
+     *         missing or invalid. The local checks throw it with HTTP status
+     *         400, the status the API answers the same request with, and no
+     *         request ID, because no request was sent.
      * @throws \Xident\SDK\Exceptions\AuthenticationException If API key is invalid
      */
     public function init(array $params): InitResult
@@ -120,8 +134,10 @@ final class Verification
      * The API's own rules for `user_id`, `min_age` and an ID verification,
      * checked before any request is sent. Codes and messages match the API's
      * 400 answers, so a caller handles one set of codes whichever side
-     * refused. The checks run in the API's order: `user_id`, then `min_age`,
-     * then the verification mode.
+     * refused. The checks run in the API's order: `callback_url`, `user_id`,
+     * `purpose`, `min_age`, then the verification mode. A value of the wrong
+     * type never reaches the API's own rules: its JSON decoder refuses the
+     * whole body with `INVALID_REQUEST`.
      *
      * Returns the params to send: the same array, except that a whole-number
      * float `min_age` (for example `18.0`) becomes the integer it stands for.
@@ -133,12 +149,23 @@ final class Verification
      */
     private static function validateInitParams(array $params): array
     {
+        $callbackUrl = $params['callback_url'] ?? null;
         $userId = $params['user_id'] ?? null;
-        if ($userId !== null && !is_string($userId)) {
-            throw new ValidationException('user_id must be a string', 'INVALID_USER_ID');
+        $purpose = $params['purpose'] ?? null;
+        foreach ([$callbackUrl, $userId, $purpose] as $value) {
+            if ($value !== null && !is_string($value)) {
+                throw self::refusal(self::INVALID_REQUEST_MESSAGE, 'INVALID_REQUEST');
+            }
+        }
+        if ($callbackUrl === null || $callbackUrl === '') {
+            throw self::refusal(self::MISSING_CALLBACK_URL_MESSAGE, 'MISSING_CALLBACK_URL');
         }
         if ($userId === null || trim($userId) === '') {
-            throw new ValidationException(self::MISSING_USER_ID_MESSAGE, 'MISSING_USER_ID');
+            throw self::refusal(self::MISSING_USER_ID_MESSAGE, 'MISSING_USER_ID');
+        }
+        // An empty purpose means the default, age_verification, as at the API.
+        if ($purpose !== null && $purpose !== '' && $purpose !== self::PURPOSE_AGE && $purpose !== self::PURPOSE_ID) {
+            throw self::refusal(self::INVALID_PURPOSE_MESSAGE, 'INVALID_PURPOSE');
         }
 
         $rawMinAge = $params['min_age'] ?? null;
@@ -147,24 +174,29 @@ final class Verification
             $params['min_age'] = $minAge;
         }
 
-        if (($params['purpose'] ?? null) === self::PURPOSE_ID) {
+        if ($purpose === self::PURPOSE_ID) {
             if ($rawMinAge !== null && $minAge !== 0) {
-                throw new ValidationException(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
+                throw self::refusal(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
             }
             if (($params['verification_mode'] ?? null) === 'facial') {
-                throw new ValidationException(self::FACIAL_WITH_ID_MESSAGE, 'INVALID_VERIFICATION_MODE');
+                throw self::refusal(self::FACIAL_WITH_ID_MESSAGE, 'INVALID_VERIFICATION_MODE');
             }
             return $params;
         }
 
-        // Any other purpose is an age verification, the strict reading the
-        // API uses too. A string such as "18" is refused: the API reads
+        // Every other purpose left here is an age verification. A string such as "18" is refused: the API reads
         // min_age as a JSON number and would not accept it either.
         if ($minAge === null || $minAge < self::MIN_AGE_FLOOR || $minAge > self::MIN_AGE_CEILING) {
-            throw new ValidationException(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
+            throw self::refusal(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
         }
 
         return $params;
+    }
+
+    /** A local refusal: the API's code and message, status 400, no request ID. */
+    private static function refusal(string $message, string $code): ValidationException
+    {
+        return new ValidationException($message, $code, null, self::HTTP_BAD_REQUEST);
     }
 
     /**
