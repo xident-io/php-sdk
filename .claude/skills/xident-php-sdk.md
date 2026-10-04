@@ -22,11 +22,13 @@ $xident = new Client(apiKey: $_ENV['XIDENT_SECRET_KEY']);
 
 $session = $xident->verification()->init([
     'callback_url' => 'https://yoursite.com/verify-callback',
-    'min_age'      => 18,        // required, 1-99 (omitting or 0 → HTTP 400)
+    'user_id'      => $userId,   // required: your own id for this person
+    'min_age'      => 18,        // required for age_verification: 12 to 25, rounded up to 12, 15, 18, 21 or 25
     'success_url'  => 'https://yoursite.com/welcome',
     'failed_url'   => 'https://yoursite.com/sorry',
-    'user_id'      => $userId,   // optional
 ]);
+// id_verification takes no min_age and cannot use verification_mode 'facial'.
+// A public key (pk_) gets 403 SECRET_KEY_REQUIRED: init needs a server key.
 
 // Redirect user to $session->verifyUrl
 header('Location: ' . $session->verifyUrl);

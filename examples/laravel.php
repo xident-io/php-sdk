@@ -31,13 +31,16 @@ class VerificationController extends Controller
         );
     }
 
-    /** Start verification — redirect user to Xident widget. */
+    /**
+     * Start verification — redirect user to Xident widget.
+     * The route sits behind the `auth` middleware, so there is always a user.
+     */
     public function start(Request $request): RedirectResponse
     {
         $session = $this->xident->verification()->init([
             'callback_url' => route('verification.callback'),
-            'min_age'      => 18,
-            'user_id'      => (string) $request->user()?->id,
+            'user_id'      => (string) $request->user()->id, // required: your own id for this person
+            'min_age'      => 18,                             // 12 to 25, rounded up to 12, 15, 18, 21 or 25
             'theme'        => 'system',
         ]);
 

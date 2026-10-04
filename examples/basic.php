@@ -8,7 +8,8 @@
  * 3. Handle callback and verify result using your SECRET key
  *
  * IMPORTANT: Use your SECRET key (sk_live_... or sk_test_...) for server-side SDK calls.
- * The public key (pk_live_...) is for the JS SDK embedded in your frontend only.
+ * A public key (pk_live_... or pk_test_...) cannot create a session: init answers
+ * 403 SECRET_KEY_REQUIRED. Never put a secret key in a browser or a mobile app.
  *
  * Run with PHP built-in server:
  *   XIDENT_SECRET_KEY=sk_test_adult_secret_key_1234567890 php -S localhost:8888 -t examples
@@ -37,7 +38,7 @@ function safeParam(string $key, ?string $default = null): ?string
 // The secret key (sk_live_... or sk_test_...) is required for:
 //   - Creating init tokens (POST /verify/v1/init)
 //   - Reading verification results (GET /verify/v1/result/{token})
-// The public key (pk_live_... or pk_test_...) is for the JS SDK only.
+// A public key (pk_live_... or pk_test_...) gets 403 SECRET_KEY_REQUIRED here.
 
 $secretKey = getenv('XIDENT_SECRET_KEY');
 if (!$secretKey) {
@@ -87,8 +88,8 @@ $callbackUrl = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost:8888') . '/basic
 try {
     $session = $xident->verification()->init([
         'callback_url' => $callbackUrl,
-        'min_age'      => 18,
-        'user_id'      => 'php_demo_user',
+        'user_id'      => 'php_demo_user', // required: your own identifier for this person
+        'min_age'      => 18,              // 12 to 25, rounded up to 12, 15, 18, 21 or 25
     ]);
 
     // Show link to verification widget
@@ -104,7 +105,7 @@ try {
     echo "<p>Code: " . htmlspecialchars($e->getErrorCode() ?? 'unknown') . "</p>";
     echo "<p>Request ID: " . htmlspecialchars($e->getRequestId() ?? 'n/a') . "</p>";
 
-    if (str_contains($e->getMessage(), 'SECRET_KEY_REQUIRED')) {
+    if ($e->getErrorCode() === 'SECRET_KEY_REQUIRED') {
         echo "<p style='color:#b91c1c'><strong>Hint:</strong> You're using a public key (pk_...). ";
         echo "The init endpoint requires a secret key (sk_...). Check your dashboard for the secret key.</p>";
     }

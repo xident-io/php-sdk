@@ -28,6 +28,7 @@ add_shortcode('xident_verify', function (array $atts): string {
 
 /**
  * AJAX handler: start verification.
+ * wp_ajax_ (without nopriv) runs for logged-in users only, so the user id is set.
  */
 add_action('wp_ajax_xident_start', function (): void {
     $apiKey = get_option('xident_secret_key', '');
@@ -40,8 +41,8 @@ add_action('wp_ajax_xident_start', function (): void {
     try {
         $session = $xident->verification()->init([
             'callback_url' => home_url('/xident-callback/'),
-            'min_age'      => (int) get_option('xident_min_age', 18),
-            'user_id'      => (string) get_current_user_id(),
+            'user_id'      => (string) get_current_user_id(),           // required
+            'min_age'      => (int) get_option('xident_min_age', 18),   // 12 to 25, rounded up to the band
         ]);
 
         // Redirect is to a known Xident domain — safe

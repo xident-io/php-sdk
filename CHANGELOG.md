@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Ship in the same release as the API change (xident-io/api#44, #45 and #46).
+Plan: `plans/requirements-check-trusted-params.md` version 4 in xident-io/projects.
+
+### Changed
+- `verification()->init()` requires `user_id`. Without it, or with a blank
+  value, the SDK throws a `ValidationException` with code `MISSING_USER_ID`
+  and sends nothing. A non-string `user_id` gets `INVALID_USER_ID`. From this
+  release the API refuses a missing `user_id` too.
+- `min_age` for `age_verification` must be a whole number from 12 to 25
+  (`INVALID_MIN_AGE` otherwise, including a numeric string). The API rounds
+  it up to the next of 12, 15, 18, 21 or 25 and enforces that band, so 19 is
+  enforced as 21. The SDK sends the value as given. The old range was 1 to 99.
+- `id_verification` takes no `min_age` (absent, `null` or 0; anything else is
+  `INVALID_MIN_AGE`) and cannot use `verification_mode: facial`
+  (`INVALID_VERIFICATION_MODE`). An ID verification now always requires
+  liveness, a document and a face match.
+- The local checks throw with the API's own codes and messages, HTTP status 0
+  and no request ID.
+- `SessionResult::ageBracket()` returns `null` when the session had no age
+  threshold. An `id_verification` result carries no `checks.age.gate` (the
+  API no longer reports a false 18 for it), which parses as `gate` 0; the
+  bracket used to come back as that 0 whenever the age check passed.
+
+### Documentation
+- `init` needs a server key (`sk_live_`, `sk_test_`, `ak_live_`, `ak_test_`);
+  a public key gets 403 `SECRET_KEY_REQUIRED`. The README lists the new error
+  codes, `verification_mode` and `liveness_difficulty`.
+- Every example passes a `user_id`. `examples/basic.php` now reads the
+  `SECRET_KEY_REQUIRED` hint from the error code, not the message.
+
 ## [3.2.0] - 2026-09-06
 
 ### Added

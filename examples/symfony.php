@@ -28,9 +28,13 @@ class VerificationController extends AbstractController
     #[Route('/verify/start', name: 'verify_start')]
     public function start(): RedirectResponse
     {
+        // user_id is required, so this route needs a logged-in user.
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED');
+
         $session = $this->xident->verification()->init([
             'callback_url' => $this->generateUrl('verify_callback', [], 0),
-            'min_age'      => 18,
+            'user_id'      => $this->getUser()->getUserIdentifier(), // your own id for this person
+            'min_age'      => 18,                                    // 12 to 25, rounded up to 12, 15, 18, 21 or 25
         ]);
 
         // verifyUrl is always https://verify.xident.io — safe to redirect

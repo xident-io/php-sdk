@@ -109,11 +109,19 @@ final readonly class SessionResult
 
     /**
      * The verified age bracket (12, 15, 18, 21, 25), or null when the age
-     * check did not pass (including when it never ran).
+     * check did not pass (including when it never ran), and null when the
+     * session had no age threshold.
+     *
+     * An `id_verification` session has no age threshold: its result carries
+     * no `checks.age.gate`, which parses as `gate` 0. Its age check can still
+     * pass (the document proved a date of birth), so `passed` alone would
+     * make this return 0 as if 0 were a band. No band is below 12.
      */
     public function ageBracket(): ?int
     {
-        return $this->checks->age->passed ? $this->checks->age->gate : null;
+        $age = $this->checks->age;
+
+        return $age->passed && $age->gate > 0 ? $age->gate : null;
     }
 
     /**

@@ -21,6 +21,9 @@ final readonly class AgeGateCheck
          * is meaningful even when `$performed` is false — the API always
          * knows the gate a session was created against, whether or not the
          * age check ever ran.
+         *
+         * 0 when the session had no age threshold: an `id_verification`
+         * session's result carries no `gate` key. Do not read 0 as an age.
          */
         public int $gate,
     ) {}
