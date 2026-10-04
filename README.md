@@ -60,7 +60,9 @@ Two checks on top of "verified", both on your server:
   result token copied from someone else's callback is a real success, for
   somebody else.
 - **Which age does it prove?** `provesAge($minAge)` is true only when the
-  session passed and its age gate is `$minAge` or higher. An 18+ result does
+  session passed and its age gate (`checks.age.gate`) is `$minAge` or higher.
+  It does not need `checks.age.passed`: a returning user who reused their
+  Xident ID passes with the gate but without a new age check in that session. An 18+ result does
   not open a 21+ page, and an `id_verification` result (no gate) proves no age.
   Pass the age your server requires, never one from the request.
 
@@ -148,7 +150,7 @@ session:
 | `checks->faceMatch` | `CheckResult` | `performed`, `passed` |
 | `checks->dataMatch` | `?DataMatchCheck` | `performed`, `passed`, `fields` — `null` unless you sent `expected` and a document was read. Each of `fields->firstName`, `lastName`, `dateOfBirth`, `documentNumber`, `nationality` is `match`, `mismatch`, `not_on_document` or `null`. Gate on `$checks->dataMatch?->passed === true`. |
 
-Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `provesAge(int $minAge)` (⇒ the session passed and `checks->age` passed with a gate of `$minAge` or higher; false for an `id_verification` result, which has no gate), `ageBracket()` (⇒ `checks->age->gate` when `checks->age->passed` and the session had an age threshold, else `null`), `method()` (⇒ `$result->verificationType`)
+Helpers: `isVerified()`, `isFailed()`, `isPending()`, `isTerminal()`, `provesAge(int $minAge)` (⇒ the session passed and `checks->age->gate` is `$minAge` or higher; false for an `id_verification` result, which has no gate), `ageBracket()` (⇒ `checks->age->gate` when that age was proven, by a passed age check or by a passed session with a gate, else `null`), `method()` (⇒ `$result->verificationType`)
 
 ### webhooks()->constructEvent(payload, signature, secret): array
 

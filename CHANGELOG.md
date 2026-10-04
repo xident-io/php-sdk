@@ -30,13 +30,16 @@ Plan: `plans/requirements-check-trusted-params.md` version 4 in xident-io/projec
 - `SessionResult::ageBracket()` returns `null` when the session had no age
   threshold. An `id_verification` result carries no `checks.age.gate` (the
   API no longer reports a false 18 for it), which parses as `gate` 0; the
-  bracket used to come back as that 0 whenever the age check passed.
+  bracket used to come back as that 0 whenever the age check passed. It
+  now also returns the gate of a passed Xident ID reuse, whose age check in
+  that session did not run.
 
 ### Added
 - The client accepts agent keys (`ak_live_`, `ak_test_`) as well as secret
   keys. The API accepts both on `POST /verify/v1/init`.
-- `SessionResult::provesAge(int $minAge)`: true only when the session passed,
-  its age check passed, and its age gate is `$minAge` or higher. An
+- `SessionResult::provesAge(int $minAge)`: true only when the session passed
+  and its age gate (`checks.age.gate`) is `$minAge` or higher. It does not
+  need `checks.age.passed`, which is false for a passed Xident ID reuse. An
   `id_verification` result has no gate and proves no age.
 
 ### Documentation

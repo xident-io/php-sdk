@@ -20,11 +20,19 @@ use Xident\SDK\Responses\SessionResult;
  *    `id_verification` returns it since api#44: the document proved a date of
  *    birth, so `checks.age.passed` is true, but the session had no age
  *    threshold, so `checks.age.gate` is absent.
+ *  - tenant_result_v1_xident_id_reuse.json: a passed Xident ID reuse, built
+ *    from the API code (api PR #45 at c2d6890: account_reuse.go completes the
+ *    session with kind xident_id; session_result_view.go buildResultChecks
+ *    sets the gate from the session's min_age and performed/passed only from
+ *    an age result or a document date of birth). `checks.age.gate` is 21,
+ *    `checks.age.performed` and `passed` are false: this session captured no
+ *    new evidence.
  */
 final class ProvesAgeTest extends TestCase
 {
     private const AGE_FIXTURE = __DIR__ . '/../../Fixtures/tenant_result_v1.golden.json';
     private const ID_FIXTURE = __DIR__ . '/../../Fixtures/tenant_result_v1_id_no_gate.json';
+    private const REUSE_FIXTURE = __DIR__ . '/../../Fixtures/tenant_result_v1_xident_id_reuse.json';
 
     /** @return array<string, mixed> */
     private static function fixture(string $path): array
@@ -56,6 +64,19 @@ final class ProvesAgeTest extends TestCase
         $this->assertSame($proves, $result->provesAge($required));
     }
 
+    #[DataProvider('requiredAgeProvider')]
+    public function testXidentIdReuseProvesItsGateWithoutAnAgeCheckInThisSession(int $required, bool $proves): void
+    {
+        $result = SessionResult::fromArray(self::fixture(self::REUSE_FIXTURE));
+
+        $this->assertSame('xident_id', $result->verificationType);
+        $this->assertFalse($result->checks->age->performed);
+        $this->assertFalse($result->checks->age->passed);
+        $this->assertSame(21, $result->checks->age->gate);
+        $this->assertSame($proves, $result->provesAge($required));
+        $this->assertSame(21, $result->ageBracket());
+    }
+
     public function testIdOnlyResultProvesNoAge(): void
     {
         $result = SessionResult::fromArray(self::fixture(self::ID_FIXTURE));
@@ -83,8 +104,12 @@ final class ProvesAgeTest extends TestCase
                 $d['verified'] = false;
                 return $d;
             }],
-            'verified but the age check did not pass' => [static function (array $d): array {
-                $d['checks']['age']['passed'] = false;
+            'verified but the gate is 0' => [static function (array $d): array {
+                $d['checks']['age']['gate'] = 0;
+                return $d;
+            }],
+            'verified but no gate at all' => [static function (array $d): array {
+                unset($d['checks']['age']['gate']);
                 return $d;
             }],
             'pending' => [static function (array $d): array {
@@ -99,7 +124,7 @@ final class ProvesAgeTest extends TestCase
      * @param callable(array<string, mixed>): array<string, mixed> $change
      */
     #[DataProvider('notProvenProvider')]
-    public function testOnlyAPassedSessionWithAPassedAgeCheckProvesAnAge(callable $change): void
+    public function testOnlyAPassedSessionWithAGateProvesAnAge(callable $change): void
     {
         $result = SessionResult::fromArray($change(self::fixture(self::AGE_FIXTURE)));
 
@@ -116,7 +141,7 @@ final class ProvesAgeTest extends TestCase
         $secret = 'whsec_test';
         $client = new Client('sk_test_123', transport: static fn () => throw new \LogicException('no request expected'));
 
-        foreach ([[self::AGE_FIXTURE, true], [self::ID_FIXTURE, false]] as [$path, $proves]) {
+        foreach ([[self::AGE_FIXTURE, true], [self::ID_FIXTURE, false], [self::REUSE_FIXTURE, true]] as [$path, $proves]) {
             $payload = json_encode([
                 'id' => 'evt_0001',
                 'type' => 'session.success',

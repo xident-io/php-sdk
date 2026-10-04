@@ -108,9 +108,13 @@ final readonly class SessionResult
     }
 
     /**
-     * The verified age bracket (12, 15, 18, 21, 25), or null when the age
-     * check did not pass (including when it never ran), and null when the
-     * session had no age threshold.
+     * The verified age bracket (12, 15, 18, 21, 25), or null when no age was
+     * proven, and null when the session had no age threshold.
+     *
+     * The gate when the age check passed, or when the session passed with a
+     * gate: a returning user who reused their Xident ID (`verification_type`
+     * `xident_id`) proves the gate without a new age check in this session,
+     * so `checks.age.passed` is false there.
      *
      * An `id_verification` session has no age threshold: its result carries
      * no `checks.age.gate`, which parses as `gate` 0. Its age check can still
@@ -120,14 +124,24 @@ final readonly class SessionResult
     public function ageBracket(): ?int
     {
         $age = $this->checks->age;
+        if ($age->gate <= 0) {
+            return null;
+        }
 
-        return $age->passed && $age->gate > 0 ? $age->gate : null;
+        return $age->passed || $this->provesAge($age->gate) ? $age->gate : null;
     }
 
     /**
      * Whether this result proves the person is at least $minAge: the
-     * session passed (`status` success and `verified` true), its age check
-     * passed, and the age gate it was checked against is $minAge or higher.
+     * session passed (`status` success and `verified` true), it has an age
+     * gate (`checks.age.gate`, the band it was checked against), and that
+     * gate is $minAge or higher.
+     *
+     * It does not read `checks->age->passed`: a returning user who reused
+     * their Xident ID (`verification_type` `xident_id`) passes with the gate
+     * but with `checks.age` performed and passed false, because that session
+     * captured no new evidence. The age was proven when the account was
+     * verified.
      *
      * Pass the age YOUR server requires, never an age from the browser or
      * the callback URL. A result whose gate is lower (an 18+ result shown to
@@ -144,7 +158,6 @@ final readonly class SessionResult
 
         return $this->isVerified()
             && $this->verified
-            && $age->passed
             && $age->gate > 0
             && $age->gate >= $minAge;
     }
