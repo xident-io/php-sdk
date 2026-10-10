@@ -14,7 +14,11 @@ use Xident\SDK\Resources\Webhooks;
  *
  * Usage:
  *   $xident = new \Xident\SDK\Client('sk_live_xxx');
- *   $session = $xident->verification()->init([...]);
+ *   $session = $xident->verification()->init([
+ *       'callback_url' => 'https://yoursite.com/verify-callback',
+ *       'user_id'      => $yourUserId,
+ *       'min_age'      => 18,
+ *   ]);
  *   $result = $xident->verification()->getResult($token);
  */
 final class Client
@@ -27,7 +31,8 @@ final class Client
     private ?Blacklist $blacklist = null;
 
     /**
-     * @param string      $apiKey     Your Xident secret API key (sk_live_xxx or sk_test_xxx)
+     * @param string      $apiKey     A server key: your secret key (sk_live_xxx or sk_test_xxx)
+     *                                or an agent key (ak_live_xxx or ak_test_xxx)
      * @param string|null $baseUrl    API base URL (default: https://api.xident.io)
      * @param int|null    $timeout    Request timeout in seconds (default: 30)
      * @param int|null    $maxRetries Max retries on 5xx errors (default: 3)

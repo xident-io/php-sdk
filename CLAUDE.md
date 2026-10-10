@@ -26,7 +26,7 @@ Client → Resources (Verification, Webhooks, Face2FA, Blacklist)
 - `src/Xident/SDK/Responses/` — Readonly response objects
 - `src/Xident/SDK/Exceptions/` — Exception hierarchy
 - `src/Xident/SDK/Enums/` — PHP enums (SessionStatus)
-- `tests/` — PHPUnit tests (133 tests)
+- `tests/` — PHPUnit tests (266 tests)
 - `examples/` — Framework-specific integration examples
 
 ## API Endpoints Used
@@ -48,7 +48,7 @@ Client → Resources (Verification, Webhooks, Face2FA, Blacklist)
 ## Commands
 ```bash
 composer install          # Install dependencies
-composer test             # Run PHPUnit (133 tests)
+composer test             # Run PHPUnit (266 tests)
 composer test:coverage    # Coverage report
 php examples/basic.php    # Run basic example
 ```

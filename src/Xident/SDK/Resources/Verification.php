@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Xident\SDK\Resources;
 
+use Xident\SDK\Exceptions\ValidationException;
 use Xident\SDK\HttpClient;
 use Xident\SDK\Responses\InitResult;
 use Xident\SDK\Responses\SessionResult;
@@ -13,6 +14,34 @@ use Xident\SDK\Responses\SessionResult;
  */
 final class Verification
 {
+    /** The lowest and highest `min_age` an age verification accepts. */
+    private const MIN_AGE_FLOOR = 12;
+    private const MIN_AGE_CEILING = 25;
+
+    private const PURPOSE_ID = 'id_verification';
+
+    private const PURPOSE_AGE = 'age_verification';
+
+    /** A local refusal has the status the API answers the same request with. */
+    private const HTTP_BAD_REQUEST = 400;
+
+    private const INVALID_REQUEST_MESSAGE = 'invalid request body';
+
+    private const MISSING_CALLBACK_URL_MESSAGE = 'callback_url is required';
+
+    private const INVALID_PURPOSE_MESSAGE = "purpose must be 'age_verification' or 'id_verification'";
+
+    private const MISSING_USER_ID_MESSAGE =
+        'user_id is required: pass your own identifier for the person being verified';
+
+    private const INVALID_MIN_AGE_MESSAGE =
+        'min_age must be between 12 and 25; it is rounded up to the next of 12, 15, 18, 21 or 25 '
+        . '(19 is enforced as 21). An id_verification takes no min_age.';
+
+    private const FACIAL_WITH_ID_MESSAGE =
+        'verification_mode facial cannot be combined with purpose id_verification, '
+        . 'which always requires a document';
+
     public function __construct(
         private readonly HttpClient $http,
     ) {}
@@ -21,25 +50,36 @@ final class Verification
      * Create an init token for starting a verification session.
      *
      * Returns an init token (`xit_` prefixed) and the full URL to redirect the
-     * user to. The init token is one-time-use and valid for 10 minutes.
+     * user to. The init token is valid for 10 minutes.
+     *
+     * Needs a server key (`sk_live_`, `sk_test_`, `ak_live_` or `ak_test_`). A
+     * public key (`pk_`) gets 403 `SECRET_KEY_REQUIRED`. Never put a server key
+     * in a browser or a mobile app.
      *
      * Required params:
      * - `callback_url`: HTTPS URL (http://localhost allowed for dev) the widget
      *   redirects the browser back to when done.
-     * - `min_age`: 1-99. REQUIRED for age verification — omitting it (or sending 0)
-     *   returns HTTP 400. Only optional (0-99) when `purpose` is `id_verification`.
+     * - `user_id`: required. Your own identifier for the person being
+     *   verified. It comes back on the callback and in the result.
+     * - `min_age`: required for `age_verification`: a whole number from 12 to
+     *   25. Xident rounds it up to the next of 12, 15, 18, 21 or 25 and
+     *   enforces that band, so 19 is enforced as 21. An `id_verification`
+     *   takes no `min_age` (leave it out, or send 0).
      *
      * Optional params:
      * - `success_url` / `failed_url`: redirect targets for each outcome.
-     * - `user_id`: your internal user ID, echoed back on the callback.
      * - `theme`: `light`, `dark`, or `system`. Unknown values coerce to `system`.
      * - `locale`: one of en, es, fr, de, pt, ar, zh, ja, hi, nl. Unknown → `en`.
      * - `metadata`: an OPAQUE string echoed back to you (e.g. a JSON blob or plan
      *   ID). Xident stores it verbatim and never parses it.
-     * - `purpose`: `age_verification` (default) or `id_verification`.
+     * - `purpose`: `age_verification` (default) or `id_verification`. An ID
+     *   verification requires liveness, a document and a face match.
      * - `verification_mode`: `auto` (default), `document` to force document +
      *   face match, or `facial` to force on-device age estimation. Composes
-     *   with `min_age` rather than replacing it.
+     *   with `min_age` rather than replacing it. `facial` cannot be combined
+     *   with purpose `id_verification`, which always needs a document.
+     * - `liveness_difficulty`: `easy` (default), `medium` or `hard`. Any other
+     *   value gets 400 `INVALID_LIVENESS_DIFFICULTY` from the API.
      * - `expected`: identity data you already hold about the user, checked
      *   against the document they present (data match, since 2026-09-05). Any
      *   subset of `first_name`, `last_name`, `date_of_birth` (YYYY-MM-DD),
@@ -51,28 +91,128 @@ final class Verification
      *   with the outcome unchanged; `review` sends any mismatch to your review
      *   queue with reason `data_mismatch`. Only meaningful with `expected`.
      *
+     * The SDK checks `callback_url`, `user_id`, `purpose`, `min_age` and the
+     * `id_verification` rules before it sends anything, in the API's order,
+     * and throws the same error codes the API answers with:
+     * `INVALID_REQUEST` (`callback_url`, `user_id` or `purpose` is not a
+     * string), `MISSING_CALLBACK_URL`, `MISSING_USER_ID`, `INVALID_PURPOSE`,
+     * `INVALID_MIN_AGE`, `INVALID_VERIFICATION_MODE`. It sends `min_age` as given; the API is the
+     * one place that rounds it to the band. A whole-number float such as
+     * `18.0` is accepted and sent as the integer `18`; `18.5` is refused.
+     *
      * @param array{
      *   callback_url: string,
-     *   min_age?: int,
+     *   user_id: string,
+     *   min_age?: int|float,
      *   success_url?: string,
      *   failed_url?: string,
-     *   user_id?: string,
      *   theme?: string,
      *   locale?: string,
      *   metadata?: string,
      *   purpose?: string,
      *   verification_mode?: string,
+     *   liveness_difficulty?: string,
      *   expected?: array{first_name?: string, last_name?: string, date_of_birth?: string, document_number?: string, nationality?: string},
      *   mismatch_policy?: string,
      * } $params
      *
-     * @throws \Xident\SDK\Exceptions\ValidationException If required params are missing
+     * @throws \Xident\SDK\Exceptions\ValidationException If a parameter is
+     *         missing or invalid. The local checks throw it with HTTP status
+     *         400, the status the API answers the same request with, and no
+     *         request ID, because no request was sent.
      * @throws \Xident\SDK\Exceptions\AuthenticationException If API key is invalid
      */
     public function init(array $params): InitResult
     {
+        $params = self::validateInitParams($params);
+
         $response = $this->http->post('/init', $params);
         return InitResult::fromArray($response->data ?? []);
+    }
+
+    /**
+     * The API's own rules for `user_id`, `min_age` and an ID verification,
+     * checked before any request is sent. Codes and messages match the API's
+     * 400 answers, so a caller handles one set of codes whichever side
+     * refused. The checks run in the API's order: `callback_url`, `user_id`,
+     * `purpose`, `min_age`, then the verification mode. A value of the wrong
+     * type never reaches the API's own rules: its JSON decoder refuses the
+     * whole body with `INVALID_REQUEST`.
+     *
+     * Returns the params to send: the same array, except that a whole-number
+     * float `min_age` (for example `18.0`) becomes the integer it stands for.
+     *
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>
+     *
+     * @throws ValidationException
+     */
+    private static function validateInitParams(array $params): array
+    {
+        $callbackUrl = $params['callback_url'] ?? null;
+        $userId = $params['user_id'] ?? null;
+        $purpose = $params['purpose'] ?? null;
+        foreach ([$callbackUrl, $userId, $purpose] as $value) {
+            if ($value !== null && !is_string($value)) {
+                throw self::refusal(self::INVALID_REQUEST_MESSAGE, 'INVALID_REQUEST');
+            }
+        }
+        if ($callbackUrl === null || $callbackUrl === '') {
+            throw self::refusal(self::MISSING_CALLBACK_URL_MESSAGE, 'MISSING_CALLBACK_URL');
+        }
+        if ($userId === null || trim($userId) === '') {
+            throw self::refusal(self::MISSING_USER_ID_MESSAGE, 'MISSING_USER_ID');
+        }
+        // An empty purpose means the default, age_verification, as at the API.
+        if ($purpose !== null && $purpose !== '' && $purpose !== self::PURPOSE_AGE && $purpose !== self::PURPOSE_ID) {
+            throw self::refusal(self::INVALID_PURPOSE_MESSAGE, 'INVALID_PURPOSE');
+        }
+
+        $rawMinAge = $params['min_age'] ?? null;
+        $minAge = self::wholeNumber($rawMinAge);
+        if ($minAge !== null) {
+            $params['min_age'] = $minAge;
+        }
+
+        if ($purpose === self::PURPOSE_ID) {
+            if ($rawMinAge !== null && $minAge !== 0) {
+                throw self::refusal(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
+            }
+            if (($params['verification_mode'] ?? null) === 'facial') {
+                throw self::refusal(self::FACIAL_WITH_ID_MESSAGE, 'INVALID_VERIFICATION_MODE');
+            }
+            return $params;
+        }
+
+        // Every other purpose left here is an age verification. A string such as "18" is refused: the API reads
+        // min_age as a JSON number and would not accept it either.
+        if ($minAge === null || $minAge < self::MIN_AGE_FLOOR || $minAge > self::MIN_AGE_CEILING) {
+            throw self::refusal(self::INVALID_MIN_AGE_MESSAGE, 'INVALID_MIN_AGE');
+        }
+
+        return $params;
+    }
+
+    /** A local refusal: the API's code and message, status 400, no request ID. */
+    private static function refusal(string $message, string $code): ValidationException
+    {
+        return new ValidationException($message, $code, null, self::HTTP_BAD_REQUEST);
+    }
+
+    /**
+     * The integer a `min_age` value stands for, or null when it is not a
+     * whole number: an int as it is, a finite float with no fraction (18.0)
+     * as its int, anything else (18.5, "18", true, null) null.
+     */
+    private static function wholeNumber(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+        if (is_float($value) && is_finite($value) && floor($value) === $value && abs($value) <= 1000.0) {
+            return (int) $value;
+        }
+        return null;
     }
 
     /**

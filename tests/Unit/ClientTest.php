@@ -92,7 +92,11 @@ final class ClientTest extends TestCase
         $transport->queueSuccess(['token' => 'xit_abc', 'verify_url' => 'https://verify.xident.io?t=xit_abc']);
 
         $client = new Client('sk_test_123', transport: $transport);
-        $result = $client->verification()->init(['callback_url' => 'https://example.com/cb']);
+        $result = $client->verification()->init([
+            'callback_url' => 'https://example.com/cb',
+            'user_id' => 'usr_1',
+            'min_age' => 18,
+        ]);
 
         $this->assertSame('xit_abc', $result->token);
         $this->assertSame(1, $transport->getRequestCount());

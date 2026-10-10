@@ -10,6 +10,10 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Xident\SDK\Client;
 use Xident\SDK\Exceptions\ValidationException;
+use Xident\SDK\Responses\SessionResult;
+
+// The minimum age this site requires (12 to 25). Decided on the server.
+const REQUIRED_MIN_AGE = 18;
 
 $xident = new Client(
     apiKey: getenv('XIDENT_SECRET_KEY') ?: 'sk_test_xxx',
@@ -34,10 +38,14 @@ try {
         // registered before then still receives it.
         case 'session.success':
         case 'session.completed':
-            $token  = $event['data']['token'] ?? '';
-            $status = $event['data']['status'] ?? '';
-            // Update your database, grant access, etc.
-            error_log("Verification {$token} completed with status: {$status}");
+            // `data` is the same result GET /verify/v1/result/{token} returns.
+            $result = SessionResult::fromArray($event['data'] ?? []);
+            // externalUserId is the user_id your server sent to init: look the
+            // user up by it. Grant the age only when the result proves the age
+            // this site requires; an ID-only result proves no age.
+            if ($result->externalUserId !== null && $result->provesAge(REQUIRED_MIN_AGE)) {
+                error_log("User {$result->externalUserId} proved " . REQUIRED_MIN_AGE . '+');
+            }
             break;
 
         case 'session.failed':
