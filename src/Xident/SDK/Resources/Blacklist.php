@@ -52,10 +52,10 @@ final class Blacklist
      *
      * The server derives the face from the session and blacklists it — you
      * never handle the image. Only works for DOCUMENT verification sessions,
-     * for 12 months after the session (the face embedding is retained for
-     * that period, then permanently deleted), and only after the session has
-     * reached a terminal state (a still-running session is rejected with
-     * HTTP 409).
+     * for as long as your data retention setting keeps the session's face
+     * embedding (at most 12 months; then it is permanently deleted), and only
+     * after the session has reached a terminal state (a still-running session
+     * is rejected with HTTP 409).
      *
      * A browser-only session never captured a face and is rejected with
      * SESSION_HAS_NO_FACE_DATA; one past its retention window is rejected
