@@ -50,17 +50,18 @@ final class Blacklist
     /**
      * Blacklist the person from one of YOUR verification sessions.
      *
-     * The server uses the session's stored face embedding or, for a session
-     * less than 24 hours old, the selfie still in storage, and blacklists the
-     * face; you never handle the image. Only works for DOCUMENT verification
-     * sessions, for as long as your data retention setting keeps the
-     * session's face embedding (at most 12 months; then it is permanently
-     * deleted), and only after the session has reached a terminal state (a
-     * still-running session is rejected with HTTP 409). The period is fixed
-     * when the embedding is stored: raising the setting later does not
-     * extend an older session, and lowering it deletes older ones. With 0
-     * days no embedding is stored, but a session less than 24 hours old can
-     * still be blacklisted, from the selfie still in storage.
+     * The server uses the session's stored face embedding or, if there is
+     * none, the session's selfie, and blacklists the face; you never handle
+     * the image. Only works for DOCUMENT verification sessions, for as long
+     * as your data retention setting keeps the session's face embedding (at
+     * most 12 months; then it is permanently deleted), and only after the
+     * session has reached a terminal state (a still-running session is
+     * rejected with HTTP 409). The period is fixed when the embedding is
+     * stored: raising the setting later does not extend an older session,
+     * and lowering it deletes older ones. Without a stored embedding (for
+     * example with 0 days), blacklisting works only while the session's
+     * selfie is still stored (deleted within 24 hours of upload; about 23
+     * hours by default), and only if the session took a selfie.
      *
      * A browser-only session never captured a face and is rejected with
      * SESSION_HAS_NO_FACE_DATA; one whose face data is no longer available
